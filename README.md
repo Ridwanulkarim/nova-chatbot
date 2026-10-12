@@ -1,6 +1,6 @@
-# Nova AI - Production-Grade Full-Stack AI Chatbot
+# Pluto AI - Production-Grade Full-Stack AI Chatbot
 
-Nova AI is a full-stack, autonomous AI conversational platform engineered with FastAPI, React 18, Tailwind CSS, and SQLAlchemy. Inspired by the best of ChatGPT, Claude, and Gemini, Nova AI delivers a responsive dark-themed workspace, real-time Server-Sent Events (SSE) token streaming, multi-provider LLM abstraction (OpenAI, Groq, Gemini, Ollama), Retrieval-Augmented Generation (RAG) for document Q&A, real-time web search with source citations, and user-isolated persistent storage.
+Pluto AI is a full-stack, autonomous AI conversational platform engineered with FastAPI, React 18, Tailwind CSS, and SQLAlchemy. Inspired by the best of ChatGPT, Claude, and Gemini, Pluto AI delivers a responsive dark-themed workspace, real-time Server-Sent Events (SSE) token streaming, multi-provider LLM abstraction (OpenAI, Groq, Gemini, Ollama), Retrieval-Augmented Generation (RAG) for document Q&A, real-time web search with source citations, and user-isolated persistent storage.
 
 ---
 

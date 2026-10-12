@@ -246,7 +246,7 @@ export function ChatComposer({ onOpenDocModal, theme }) {
           <div className="absolute inset-0 z-30 bg-slate-950/90 border-2 border-dashed border-brand-400 flex flex-col items-center justify-center backdrop-blur-sm pointer-events-none">
             <UploadCloud size={36} className="text-brand-400 animate-bounce mb-1" />
             <p className="text-sm font-semibold text-white">Drop your image, screenshot, or file</p>
-            <p className="text-xs text-brand-300">Nova AI will visually analyze and inspect it</p>
+            <p className="text-xs text-brand-300">Pluto AI will visually analyze and inspect it</p>
           </div>
         )}
 
@@ -276,7 +276,7 @@ export function ChatComposer({ onOpenDocModal, theme }) {
           onPaste={handlePaste}
           placeholder={
             imageMode
-              ? 'Describe the image you want Nova AI to generate in detail...'
+              ? 'Describe the image you want Pluto AI to generate in detail...'
               : isListening
               ? 'Listening to your voice... Speak now.'
               : 'Ask anything, paste screenshots (Cmd+V), attach files, or drag & drop...'
@@ -449,7 +449,7 @@ export function ChatComposer({ onOpenDocModal, theme }) {
       <p className={`text-[11px] text-center mt-2 ${
         isLight ? 'text-slate-500' : 'text-slate-400'
       }`}>
-        Nova AI can analyze photos, files, generate artwork, and speak responses.
+        Pluto AI can analyze photos, files, generate artwork, and speak responses.
       </p>
     </div>
   );

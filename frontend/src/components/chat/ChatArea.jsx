@@ -121,7 +121,7 @@ export function ChatArea({
               ? 'bg-white text-purple-950 font-semibold'
               : 'bg-slate-800 text-white'
           }`}>
-            Nova Chat
+            Pluto Chat
           </button>
           <button
             onClick={onOpenDocModal}

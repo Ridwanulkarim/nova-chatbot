@@ -35,8 +35,8 @@ export function AuthModal({ theme }) {
   const handleDemoLogin = async () => {
     setError(null);
     setLoading(true);
-    const demoEmail = 'guest.developer@nova-ai.local';
-    const demoPw = 'NovaPass2026!';
+    const demoEmail = 'guest.developer@pluto-ai.local';
+    const demoPw = 'PlutoPass2026!';
     try {
       try {
         await login(demoEmail, demoPw);
@@ -77,7 +77,7 @@ export function AuthModal({ theme }) {
           <h2 className={`text-lg font-bold ${
             isLight ? 'text-slate-900' : 'text-white'
           }`}>
-            {isRegister ? 'Join Nova AI' : 'Sign in to Nova AI'}
+            {isRegister ? 'Join Pluto AI' : 'Sign in to Pluto AI'}
           </h2>
         </div>
         <p className={`text-xs mb-6 ${

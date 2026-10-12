@@ -8,7 +8,7 @@ from app.ai.image_service import image_service
 
 class ToolOrchestrator:
     """
-    Intelligent Tool Routing Engine for Nova AI.
+    Intelligent Tool Routing Engine for Pluto AI.
     Analyzes intent, input modalities, and routes requests to:
     - Symbolic Math Solver (SymPy)
     - Multimodal Vision & OCR (Apple Vision)

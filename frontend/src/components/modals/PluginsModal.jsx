@@ -21,7 +21,7 @@ import { api } from '../../services/api';
 const PLUGINS_DATA = [
   // Popular
   { id: 'gmail', name: 'Gmail', desc: 'Read and manage Gmail', category: 'Popular', iconBg: 'bg-red-500/20 text-red-400', iconText: 'M', type: 'Personal' },
-  { id: 'health', name: 'Health', desc: 'Explore your health data in Nova AI', category: 'Popular', iconBg: 'bg-rose-500/20 text-rose-400', iconText: '♥', type: 'Personal' },
+  { id: 'health', name: 'Health', desc: 'Explore your health data in Pluto AI', category: 'Popular', iconBg: 'bg-rose-500/20 text-rose-400', iconText: '♥', type: 'Personal' },
   { id: 'google_drive', name: 'Google Drive', desc: 'Drive, Docs, Sheets or Slides', category: 'Popular', iconBg: 'bg-amber-500/20 text-amber-400', iconText: '▲', type: 'Personal' },
   { id: 'github', name: 'GitHub', desc: 'Triage PRs, issues, CI, and publish flows', category: 'Popular', iconBg: 'bg-slate-700 text-white', iconText: 'GH', type: 'Public' },
   { id: 'supabase', name: 'Supabase', desc: 'Manage and query databases', category: 'Popular', iconBg: 'bg-emerald-500/20 text-emerald-400', iconText: '⚡', type: 'Public' },
@@ -33,7 +33,7 @@ const PLUGINS_DATA = [
   { id: 'canva', name: 'Canva', desc: 'Create, review, edit designs', category: 'New & Noteworthy', iconBg: 'bg-cyan-500/20 text-cyan-400', iconText: 'C', type: 'Public' },
   { id: 'figma', name: 'Figma', desc: 'Create designs, ship to code', category: 'New & Noteworthy', iconBg: 'bg-purple-500/20 text-purple-400', iconText: 'F', type: 'Public' },
   { id: 'shopify', name: 'Shopify', desc: 'Create and manage your store', category: 'New & Noteworthy', iconBg: 'bg-lime-500/20 text-lime-400', iconText: 'S', type: 'Public' },
-  { id: 'magicpath', name: 'MagicPath', desc: 'Design directly in Nova AI', category: 'New & Noteworthy', iconBg: 'bg-emerald-500/20 text-emerald-300', iconText: '✦', type: 'Public' },
+  { id: 'magicpath', name: 'MagicPath', desc: 'Design directly in Pluto AI', category: 'New & Noteworthy', iconBg: 'bg-emerald-500/20 text-emerald-300', iconText: '✦', type: 'Public' },
 
   // Small Business
   { id: 'dropbox', name: 'Dropbox', desc: 'Find, create, and take action', category: 'Small Business', iconBg: 'bg-blue-600/20 text-blue-400', iconText: '❖', type: 'Personal' },
@@ -94,7 +94,7 @@ const PLUGINS_DATA = [
 
   // Entertainment
   { id: 'spotify', name: 'Spotify', desc: 'Music and podcasts for you', category: 'Entertainment', iconBg: 'bg-emerald-500/20 text-emerald-400', iconText: '♫', type: 'Personal' },
-  { id: 'chessy', name: 'Chessy', desc: 'Play Chess Against Nova AI', category: 'Entertainment', iconBg: 'bg-purple-500/20 text-purple-400', iconText: '♞', type: 'Public' },
+  { id: 'chessy', name: 'Chessy', desc: 'Play Chess Against Pluto AI', category: 'Entertainment', iconBg: 'bg-purple-500/20 text-purple-400', iconText: '♞', type: 'Public' },
   { id: 'destiny_astrology', name: 'Destiny AI Astrology', desc: 'Birth Charts & Horoscopes', category: 'Entertainment', iconBg: 'bg-indigo-500/20 text-indigo-400', iconText: '★', type: 'Public' },
   { id: 'smart_chess', name: 'Smart Chess:Train+Learn to win', desc: 'Play+improve: coach+strategy', category: 'Entertainment', iconBg: 'bg-amber-500/20 text-amber-400', iconText: '♚', type: 'Public' },
   { id: 'soundbreak', name: 'SoundBreak', desc: 'Create AI Music with Artists', category: 'Entertainment', iconBg: 'bg-slate-800 text-rose-400', iconText: '♬', type: 'Public' },
@@ -307,8 +307,8 @@ export function PluginsModal({ isOpen, onClose, theme }) {
               isLight ? 'text-slate-600' : 'text-slate-400'
             }`}>
               {activeTab === 'plugins'
-                ? 'Connect plugins to let Nova AI work across your tools'
-                : 'Supercharge Nova AI with specialized autonomous capabilities'}
+                ? 'Connect plugins to let Pluto AI work across your tools'
+                : 'Supercharge Pluto AI with specialized autonomous capabilities'}
             </p>
           </div>
 

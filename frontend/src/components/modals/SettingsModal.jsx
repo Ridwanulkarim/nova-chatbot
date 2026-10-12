@@ -234,7 +234,7 @@ export function SettingsModal({ isOpen, onClose, theme }) {
               }`}>
                 <Brain size={18} className="text-purple-500 flex-shrink-0" />
                 <span>
-                  Nova AI remembers facts, style rules, and preferences you specify here to personalize future replies.
+                  Pluto AI remembers facts, style rules, and preferences you specify here to personalize future replies.
                 </span>
               </div>
 

@@ -241,15 +241,15 @@ export function Sidebar({ isOpen, onClose, onOpenSettings, onOpenDocModal, onOpe
         }`}>
           <div className="flex items-center gap-2.5">
             <img
-              src="/nova_logo.png"
-              alt="Nova AI"
+              src="/pluto_logo.png"
+              alt="Pluto AI"
               className="w-8 h-8 rounded-xl object-contain shadow-md shadow-purple-500/20"
             />
             <div>
               <h1 className={`font-bold text-sm tracking-tight flex items-center gap-1.5 ${
                 theme === 'lavender-glow' ? 'text-slate-900' : 'text-white'
               }`}>
-                Nova AI
+                Pluto AI
                 <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-brand-500/20 text-brand-500 font-medium">
                   v1.0
                 </span>

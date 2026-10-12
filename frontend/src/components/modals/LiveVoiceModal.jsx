@@ -143,7 +143,7 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
               <span className={`font-semibold text-sm tracking-wide ${
                 isLight ? 'text-slate-900' : 'text-white'
               }`}>
-                Nova Live Voice
+                Pluto Live Voice
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
@@ -334,17 +334,17 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
             )}
             {conversationState === 'speaking' && (
               voiceMode === 'translate'
-                ? 'নোভা লাইভ অনুবাদ বলছে (থামাতে স্পর্শ করুন)'
+                ? 'প্লুটো লাইভ অনুবাদ বলছে (থামাতে স্পর্শ করুন)'
                 : voiceMode === 'bengali'
-                ? 'নোভা বাংলায় কথা বলছে (থামাতে স্পর্শ করুন)'
-                : 'Nova is speaking (Click orb to interrupt)'
+                ? 'প্লুটো বাংলায় কথা বলছে (থামাতে স্পর্শ করুন)'
+                : 'Pluto is speaking (Click orb to interrupt)'
             )}
             {conversationState === 'thinking' && (
               voiceMode === 'translate'
                 ? 'অনুবাদ ও চিন্তা করছে...'
                 : voiceMode === 'bengali'
-                ? 'নোভা বাংলায় চিন্তা করছে...'
-                : 'Nova is thinking...'
+                ? 'প্লুটো বাংলায় চিন্তা করছে...'
+                : 'Pluto is thinking...'
             )}
             {conversationState === 'idle' && (
               isMuted
@@ -375,10 +375,10 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
           {!liveTranscript && (!aiSpeechText || conversationState !== 'speaking') && (
             <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>
               {voiceMode === 'translate'
-                ? 'বাংলা অথবা ইংরেজিতে কথা বলুন, নোভা সরাসরি অনুবাদ করে বাংলায়/ইংরেজিতে পড়ে শোনাবে।'
+                ? 'বাংলা অথবা ইংরেজিতে কথা বলুন, প্লুটো সরাসরি অনুবাদ করে বাংলায়/ইংরেজিতে পড়ে শোনাবে।'
                 : voiceMode === 'bengali'
-                ? 'বাংলায় যেকোনো প্রশ্ন করুন, নোভা বাংলায় উত্তর দেবে ও পড়ে শোনাবে।'
-                : 'Start speaking in English, Nova will listen and answer aloud automatically.'}
+                ? 'বাংলায় যেকোনো প্রশ্ন করুন, প্লুটো বাংলায় উত্তর দেবে ও পড়ে শোনাবে।'
+                : 'Start speaking in English, Pluto will listen and answer aloud automatically.'}
             </p>
           )}
         </div>

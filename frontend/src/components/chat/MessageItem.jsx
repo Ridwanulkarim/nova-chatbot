@@ -68,8 +68,8 @@ export function MessageItem({ message, isLast, onEdit }) {
             </div>
           ) : (
             <img
-              src="/nova_logo.png"
-              alt="Nova AI"
+              src="/pluto_logo.png"
+              alt="Pluto AI"
               className="w-8 h-8 rounded-full object-contain shadow-md shadow-purple-500/20 ring-1 ring-purple-400/30"
             />
           )}
@@ -79,7 +79,7 @@ export function MessageItem({ message, isLast, onEdit }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
             <span className="text-xs font-semibold tracking-wide text-slate-300">
-              {isUser ? 'You' : 'Nova AI'}
+              {isUser ? 'You' : 'Pluto AI'}
             </span>
             {message.model && !isUser && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono border border-slate-700/60">

@@ -4,7 +4,7 @@ from PIL import Image
 
 class VisionService:
     """
-    Multimodal Vision and OCR analysis service for Nova AI.
+    Multimodal Vision and OCR analysis service for Pluto AI.
     Extracts text, metadata, code, UI labels, and visual characteristics
     from screenshots, photos, and diagrams on macOS using native Apple Vision framework.
     """

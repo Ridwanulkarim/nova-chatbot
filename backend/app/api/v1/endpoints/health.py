@@ -18,7 +18,7 @@ def health_check(db: Session = Depends(get_db)):
     available_models = ai_factory.list_available_models()
     return {
         "status": "online",
-        "app_name": "Nova AI",
+        "app_name": "Pluto AI",
         "version": "1.0.0",
         "environment": settings.ENVIRONMENT,
         "database": db_status,

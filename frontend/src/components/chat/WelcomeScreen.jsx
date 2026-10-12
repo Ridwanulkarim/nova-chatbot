@@ -169,7 +169,7 @@ export function WelcomeScreen({
         <div className="absolute inset-0 z-50 bg-slate-950/85 border-2 border-dashed border-purple-400 rounded-3xl flex flex-col items-center justify-center backdrop-blur-md">
           <UploadCloud size={44} className="text-purple-400 animate-bounce mb-2" />
           <p className="text-base font-semibold text-white">Drop your image, screenshot, or document</p>
-          <p className="text-xs text-purple-300">Nova AI will visually analyze and inspect it</p>
+          <p className="text-xs text-purple-300">Pluto AI will visually analyze and inspect it</p>
         </div>
       )}
 
@@ -311,8 +311,8 @@ export function WelcomeScreen({
               isListening
                 ? 'Listening to your voice...'
                 : isThinking
-                ? 'Ask Nova AI with Deep Reasoning...'
-                : 'Ask Nova AI...'
+                ? 'Ask Pluto AI with Deep Reasoning...'
+                : 'Ask Pluto AI...'
             }
             className={`flex-1 bg-transparent text-sm focus:outline-none min-w-0 ${
               isLight

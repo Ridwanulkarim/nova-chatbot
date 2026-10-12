@@ -15,8 +15,8 @@ Base.metadata.create_all(bind=engine)
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(
-    title="Nova AI API",
-    description="Backend API for Nova AI conversational platform featuring streaming, RAG, and multi-provider intelligence.",
+    title="Pluto AI API",
+    description="Backend API for Pluto AI conversational platform featuring streaming, RAG, and multi-provider intelligence.",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
@@ -51,10 +51,10 @@ async def serve_root():
     return HTMLResponse(
         """
         <html>
-            <head><title>Nova AI</title></head>
+            <head><title>Pluto AI</title></head>
             <body style="font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 90vh; background: #faf5ff; color: #1e1b4b;">
                 <div style="background: white; padding: 2.5rem; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(168, 85, 247, 0.15); border: 1px solid #e9d5ff; max-width: 500px; text-align: center;">
-                    <h1 style="margin: 0 0 0.5rem 0; font-size: 1.75rem;">✨ Nova AI System</h1>
+                    <h1 style="margin: 0 0 0.5rem 0; font-size: 1.75rem;">✨ Pluto AI System</h1>
                     <p style="color: #6b7280; margin-bottom: 1.5rem; font-size: 0.95rem;">Backend API is fully operational.</p>
                     <a href="http://localhost:5180" style="display: inline-block; background: #9333ea; color: white; padding: 0.75rem 1.5rem; border-radius: 0.75rem; text-decoration: none; font-weight: 600; margin-bottom: 0.75rem;">
                         Open Chatbot UI (Port 5180) &rarr;
@@ -77,14 +77,16 @@ async def serve_bg():
         return FileResponse(public_bg)
     return JSONResponse(status_code=404, content={"detail": "Background image not found"})
 
+@app.get("/pluto_logo.png")
 @app.get("/nova_logo.png")
 async def serve_logo():
-    logo_file = os.path.join(FRONTEND_DIST, "nova_logo.png")
-    if os.path.exists(logo_file):
-        return FileResponse(logo_file)
-    public_logo = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../frontend/public/nova_logo.png"))
-    if os.path.exists(public_logo):
-        return FileResponse(public_logo)
+    for name in ["pluto_logo.png", "nova_logo.png"]:
+        logo_file = os.path.join(FRONTEND_DIST, name)
+        if os.path.exists(logo_file):
+            return FileResponse(logo_file)
+        public_logo = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../frontend/public/{name}"))
+        if os.path.exists(public_logo):
+            return FileResponse(public_logo)
     return JSONResponse(status_code=404, content={"detail": "Logo not found"})
 
 @app.get("/favicon.png")
