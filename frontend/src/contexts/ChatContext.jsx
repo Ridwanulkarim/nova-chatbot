@@ -16,9 +16,11 @@ export const DEFAULT_QUOTA = {
 };
 
 export const DEFAULT_MODELS = [
-  { id: 'openai/gpt-oss-120b', name: 'GPT-OSS 120B (Groq)' },
-  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B (Groq)' },
-  { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B (Groq)' },
+  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash (Google Vision)', supports_vision: true },
+  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (Google Vision)', supports_vision: true },
+  { id: 'openai/gpt-oss-120b', name: 'GPT-OSS 120B (Groq)', supports_vision: false },
+  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B (Groq)', supports_vision: false },
+  { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B (Groq)', supports_vision: false },
 ];
 
 export function ChatProvider({ children }) {
@@ -383,6 +385,14 @@ export function ChatProvider({ children }) {
 
     const finalAttachments = customAttachments || (attachedFiles.length > 0 ? [...attachedFiles] : null);
 
+    const hasImages = (finalAttachments || []).some(
+      (f) => f.media_type === 'image' || (f.filename && f.filename.match(/\.(png|jpg|jpeg|webp|gif|bmp)$/i))
+    );
+    let modelToUse = selectedModel;
+    if (hasImages && (!modelToUse || modelToUse.includes('oss') || modelToUse.includes('qwen') || modelToUse.includes('llama') || modelToUse.includes('groq'))) {
+      modelToUse = 'gemini-3.5-flash';
+    }
+
     // Add optimistic user message to local state
     const optimisticUserMsg = {
       id: `temp-user-${Date.now()}`,
@@ -399,7 +409,7 @@ export function ChatProvider({ children }) {
       conversation_id: currentConv.id,
       role: 'assistant',
       content: '',
-      model: selectedModel,
+      model: modelToUse,
       isStreaming: true,
       created_at: new Date().toISOString(),
     };
@@ -416,7 +426,7 @@ export function ChatProvider({ children }) {
     await streamMessage({
       conversationId: currentConv.id,
       content,
-      model: selectedModel,
+      model: modelToUse,
       webSearch: webSearchEnabled,
       fileIds: fileIds && fileIds.length > 0 ? fileIds : null,
       attachments: finalAttachments,
@@ -583,9 +593,20 @@ export function ChatProvider({ children }) {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
     if (!lastUserMsg) return;
 
+    let origAttachments = null;
+    if (lastUserMsg.attachments) {
+      try {
+        origAttachments = typeof lastUserMsg.attachments === 'string'
+          ? JSON.parse(lastUserMsg.attachments)
+          : lastUserMsg.attachments;
+      } catch (e) {
+        origAttachments = null;
+      }
+    }
+
     // Remove the last assistant message
     setMessages((prev) => prev.filter((m) => m.id !== prev[prev.length - 1].id));
-    await sendMessage(lastUserMsg.content);
+    await sendMessage(lastUserMsg.content, origAttachments);
   };
 
   // Submit feedback

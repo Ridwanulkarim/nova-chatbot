@@ -61,11 +61,17 @@ async def stream_message(
                 conv.user_id = current_user.id
                 db.commit()
         else:
+            default_mod = settings.DEFAULT_MODEL
+            try:
+                if current_user and getattr(current_user, "settings", None) and current_user.settings.default_model:
+                    default_mod = current_user.settings.default_model
+            except Exception:
+                pass
             conv = Conversation(
                 id=conversation_id,
                 user_id=current_user.id,
                 title="New Chat",
-                model=msg_in.model or (current_user.settings.default_model if current_user.settings else settings.DEFAULT_MODEL)
+                model=msg_in.model or default_mod
             )
             db.add(conv)
             db.commit()
@@ -101,8 +107,14 @@ async def stream_message(
         ).order_by(Message.created_at.asc()).all()
 
         model_name = msg_in.model or conv.model
-        temp = current_user.settings.temperature if current_user.settings else 0.7
-        sys_instructions = current_user.settings.system_instructions if current_user.settings else ""
+        temp = 0.7
+        sys_instructions = ""
+        try:
+            if current_user and getattr(current_user, "settings", None):
+                temp = current_user.settings.temperature or 0.7
+                sys_instructions = current_user.settings.system_instructions or ""
+        except Exception:
+            pass
     finally:
         db.close()
 
@@ -188,74 +200,74 @@ async def stream_message(
     finally:
         db_rag.close()
 
-    # Multimodal media attachments & Vision OCR context
-    multimodal_context = ""
-    vision_blocks = []
+    # Multimodal media attachments & Vision processing
+    attached_images = []
+    auxiliary_ocr_texts = []
+    image_validation_errors = []
 
     if msg_in.attachments:
         for a in msg_in.attachments:
             m_type = (a.get("media_type") or a.get("type", "file")).lower()
             f_name = a.get("filename") or a.get("name", "file")
             f_url = a.get("data_url") or a.get("url", "")
-            
+
             # Check if this is an image/screenshot
-            is_image = m_type == "image" or any(f_name.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"])
+            is_image = m_type == "image" or any(
+                f_name.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]
+            )
             if is_image:
-                if a.get("extracted_text"):
-                    vision_blocks.append(vision_service.format_vision_context(f_name, {"extracted_text": a["extracted_text"], "dimensions": "image", "format": "image"}))
-                elif f_url:
-                    if f_url.startswith("data:image"):
-                        temp_img_path = None
-                        try:
-                            _, b64data = f_url.split(",", 1)
-                            img_bytes = base64.b64decode(b64data)
-                            temp_img_path = os.path.join(tempfile.gettempdir(), f"vision_{uuid.uuid4().hex[:8]}.png")
-                            with open(temp_img_path, "wb") as f_tmp:
-                                f_tmp.write(img_bytes)
-                            analysis = vision_service.analyze_image(temp_img_path)
-                            vision_blocks.append(vision_service.format_vision_context(f_name, analysis))
-                        except Exception:
-                            vision_blocks.append(f"- [IMAGE ATTACHED] {f_name} (Multimodal visual data included)")
-                        finally:
-                            if temp_img_path and os.path.exists(temp_img_path):
-                                try:
-                                    os.remove(temp_img_path)
-                                except Exception:
-                                    pass
+                data_url = f_url if (f_url and f_url.startswith("data:image")) else None
+                if not data_url and f_url:
+                    # Resolve from local file path or upload directory
+                    candidates = []
+                    if not f_url.startswith("http"):
+                        base = os.path.basename(f_url)
+                        candidates.append(os.path.join(settings.UPLOAD_DIR, base))
+                        candidates.append(os.path.join(tempfile.gettempdir(), base))
+                    if f_name:
+                        candidates.append(os.path.join(settings.UPLOAD_DIR, f_name))
+                        candidates.append(os.path.join(tempfile.gettempdir(), f_name))
+                    for p in candidates:
+                        if os.path.exists(p) and os.path.getsize(p) > 0:
+                            try:
+                                import mimetypes
+                                mime, _ = mimetypes.guess_type(p)
+                                if not mime or not mime.startswith("image/"):
+                                    mime = "image/jpeg"
+                                with open(p, "rb") as f_img:
+                                    b64_raw = base64.b64encode(f_img.read()).decode("utf-8")
+                                data_url = f"data:{mime};base64,{b64_raw}"
+                                break
+                            except Exception:
+                                pass
+
+                if data_url:
+                    val_res = vision_service.validate_and_optimize(data_url)
+                    if not val_res.get("valid"):
+                        image_validation_errors.append(f"Image `{f_name}`: {val_res.get('error')}")
                     else:
-                        local_fname = os.path.basename(f_url)
-                        local_path = os.path.join(settings.UPLOAD_DIR, local_fname)
-                        if not os.path.exists(local_path):
-                            local_path = os.path.join(tempfile.gettempdir(), local_fname)
-                        if os.path.exists(local_path):
-                            analysis = vision_service.analyze_image(local_path)
-                            vision_blocks.append(vision_service.format_vision_context(f_name, analysis))
-                        else:
-                            vision_blocks.append(f"- [IMAGE] {f_name} (URL: {f_url})")
-            else:
-                vision_blocks.append(f"- [{m_type.upper()}] {f_name} (URL: {f_url})")
+                        attached_images.append({
+                            "filename": f_name,
+                            "data_url": val_res["data_url"],
+                            "mime_type": val_res.get("mime_type", "image/jpeg"),
+                            "dimensions": val_res.get("dimensions", "unknown"),
+                            "size_bytes": val_res.get("size_bytes", 0),
+                        })
+                else:
+                    image_validation_errors.append(f"Image `{f_name}`: Missing image data or unreadable image file.")
 
-    # Auto-match: If user mentions a filename (e.g. 'Screenshot 2026-10-11 at 9.59.40 PM') without attachment, resolve it from uploaded docs
-    db_find = SessionLocal()
-    try:
-        user_docs = db_find.query(Document).filter(Document.user_id == current_user.id).all()
-        for d in user_docs:
-            clean_base = os.path.splitext(d.filename)[0].strip().lower()
-            if clean_base and clean_base in msg_in.content.lower():
-                # Avoid duplicate if already in vision_blocks
-                if not any(d.filename in vb for vb in vision_blocks):
-                    analysis = vision_service.analyze_image(d.file_path)
-                    vision_blocks.append(vision_service.format_vision_context(d.filename, analysis))
-    finally:
-        db_find.close()
+                # Optional supporting OCR text if available
+                ext_text = a.get("extracted_text", "").strip()
+                if ext_text and len(ext_text) > 15:
+                    auxiliary_ocr_texts.append(f"--- Text recognized from {f_name} ---\n{ext_text}")
 
-    if vision_blocks:
-        multimodal_context = "\n\n".join([
-            "--- VISUAL & ATTACHMENT CONTEXT FOR PLUTO AI ---",
-            *vision_blocks,
-            "Carefully review the recognized visual text, OCR layout, and image details above to answer the user's questions about their screenshot/image thoroughly and accurately.",
-            "--- END ATTACHMENT CONTEXT ---"
-        ])
+    # If all uploaded images failed validation, return immediate descriptive error
+    if image_validation_errors and not attached_images:
+        err_msg = "⚠️ **Image Processing Error**:\n" + "\n".join(f"- {e}" for e in image_validation_errors)
+        async def err_gen():
+            yield f"data: {json.dumps({'token': err_msg})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'error': err_msg})}\n\n"
+        return StreamingResponse(err_gen(), media_type="text/event-stream")
 
     # Construct LLM prompt message sequence
     llm_messages = []
@@ -272,6 +284,7 @@ async def stream_message(
         base_system += f"\n\nUser Custom Instructions:\n{sys_instructions}"
     if conv.system_prompt:
         base_system += f"\n\nConversation Directives:\n{conv.system_prompt}"
+
     # Mathematical Reasoning & Symbolic Verification (SymPy Engine)
     math_context = ""
     if math_service.is_math_query(msg_in.content):
@@ -281,8 +294,6 @@ async def stream_message(
 
     if math_context:
         base_system += f"\n\n{math_context}"
-    if multimodal_context:
-        base_system += f"\n\n{multimodal_context}"
     if rag_context:
         base_system += f"\n\n{rag_context}"
     if search_context:
@@ -290,42 +301,67 @@ async def stream_message(
 
     llm_messages.append({"role": "system", "content": base_system})
 
-    # Add historical messages (limit to last 10 messages for token safety)
+    # Add historical messages (clean textual representation for prior turns)
     for hist_msg in history[-10:]:
         llm_messages.append({"role": hist_msg.role, "content": hist_msg.content})
 
-    # Ensure the multimodal visual content is directly attached to the latest user message
-    if multimodal_context and llm_messages and llm_messages[-1]["role"] == "user":
-        clean_user_prompt = llm_messages[-1]["content"].strip()
+    # Build latest user turn with direct native multimodal image parts
+    if attached_images:
+        clean_user_prompt = msg_in.content.strip()
         low = clean_user_prompt.lower()
         is_solve_intent = (
-            any(w in low for w in [
+            not clean_user_prompt
+            or any(w in low for w in [
                 "answer", "anser", "ans", "solve", "solution", "ques", "question",
                 "উত্তর", "সমাধান", "প্রশ্ন", "exam", "paper", "explain", "ব্যাখ্যা"
             ])
             or len(clean_user_prompt) < 25
         )
-        
-        explicit_directive = (
-            "The user submitted an exam question paper or exercise and requested the answers/solutions. "
-            "Please solve and provide comprehensive, step-by-step answers for ALL questions (e.g. Q1, Q2, Q3) shown in the paper in complete detail."
-            if is_solve_intent else
-            "Carefully examine the questions and text on this uploaded document/image and answer what was requested."
-        )
 
-        llm_messages[-1]["content"] = (
-            f"{clean_user_prompt}\n\n"
-            f"[ATTACHED IMAGE & QUESTION PAPER DETAILS]:\n"
-            f"{multimodal_context}\n\n"
-            f"DIRECTIVE FOR PLUTO AI: {explicit_directive}"
-        )
+        if not clean_user_prompt:
+            clean_user_prompt = (
+                "Please analyze this uploaded image thoroughly. "
+                "If it contains questions, problems, or exercises (e.g. an exam paper, homework, or textbook page), "
+                "solve ALL questions step-by-step with complete, clear answers. "
+                "If it contains diagrams, flowcharts, code screenshots, UI screens, or photographs, "
+                "explain and describe all visible visual contents in detail."
+            )
+        elif is_solve_intent:
+            clean_user_prompt = (
+                f"{clean_user_prompt}\n\n"
+                "Please solve and provide comprehensive, step-by-step answers for ALL questions "
+                "and problems visible in the attached image in complete detail."
+            )
 
-    # Resolve AI provider
-    provider, resolved_model = ai_factory.get_provider_for_model(model_name)
+        if auxiliary_ocr_texts:
+            clean_user_prompt += "\n\n" + "\n\n".join(auxiliary_ocr_texts)
+
+        # Structure as OpenAI/Gemini standard multimodal parts array
+        user_parts = [{"type": "text", "text": clean_user_prompt}]
+        for img in attached_images:
+            user_parts.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": img["data_url"]
+                }
+            })
+
+        # Replace or add latest user turn with multimodal structure
+        if llm_messages and llm_messages[-1]["role"] == "user":
+            llm_messages[-1]["content"] = user_parts
+        else:
+            llm_messages.append({"role": "user", "content": user_parts})
+
+    # Resolve AI provider: Auto-route to a genuine vision-capable provider if images are present
+    if attached_images:
+        provider, resolved_model = ai_factory.get_vision_capable_provider(model_name)
+    else:
+        provider, resolved_model = ai_factory.get_provider_for_model(model_name)
+
     if not provider:
         async def err_gen():
             error_payload = {
-                "error": "No AI providers configured. Please set OPENAI_API_KEY or GROQ_API_KEY in the server environment."
+                "error": "No AI providers configured. Please set GEMINI_API_KEY or GROQ_API_KEY in the server environment."
             }
             yield f"data: {json.dumps(error_payload)}\n\n"
         return StreamingResponse(err_gen(), media_type="text/event-stream")
@@ -345,33 +381,40 @@ async def stream_message(
         except asyncio.CancelledError:
             # Client disconnected early or pressed Stop
             pass
+        except Exception as stream_err:
+            err_msg = f"\n\n**Error**: An unexpected error occurred while processing the response: {str(stream_err)}"
+            full_assistant_reply.append(err_msg)
+            yield f"data: {json.dumps({'token': err_msg})}\n\n"
         finally:
             # Safely persist assistant message to DB
             final_content = "".join(full_assistant_reply).strip()
-            if final_content:
-                db_save = SessionLocal()
-                try:
-                    assistant_msg = Message(
-                        conversation_id=conversation_id,
-                        role="assistant",
-                        content=final_content,
-                        model=resolved_model,
-                        citations=json.dumps(citations_data) if citations_data else None
-                    )
-                    db_save.add(assistant_msg)
-                    db_save.commit()
-                    db_save.refresh(assistant_msg)
-                    done_payload = {
-                        "done": True,
-                        "message_id": assistant_msg.id,
-                        "title": updated_title,
-                        "citations": citations_data
-                    }
-                    yield f"data: {json.dumps(done_payload)}\n\n"
-                except Exception as save_err:
-                    db_save.rollback()
-                finally:
-                    db_save.close()
+            if not final_content:
+                final_content = "⚠️ The AI vision model did not return a response. Please try again with a clearer image or prompt."
+                yield f"data: {json.dumps({'token': final_content})}\n\n"
+
+            db_save = SessionLocal()
+            try:
+                assistant_msg = Message(
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    content=final_content,
+                    model=resolved_model,
+                    citations=json.dumps(citations_data) if citations_data else None
+                )
+                db_save.add(assistant_msg)
+                db_save.commit()
+                db_save.refresh(assistant_msg)
+                done_payload = {
+                    "done": True,
+                    "message_id": assistant_msg.id,
+                    "title": updated_title,
+                    "citations": citations_data
+                }
+                yield f"data: {json.dumps(done_payload)}\n\n"
+            except Exception as save_err:
+                db_save.rollback()
+            finally:
+                db_save.close()
 
     return StreamingResponse(
         sse_event_stream(),

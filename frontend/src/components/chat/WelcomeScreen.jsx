@@ -138,35 +138,14 @@ export function WelcomeScreen({
     if ((!textToSend && attachedFiles.length === 0) || isStreaming || uploadingFile) return;
 
     let finalPrompt = textToSend;
-    const lower = finalPrompt.toLowerCase();
-    const isSolveIntent =
-      !finalPrompt ||
-      ['answer', 'anser', 'ans', 'solve', 'solution', 'ques', 'question', 'উত্তর', 'সমাধান', 'প্রশ্ন', 'exam', 'paper'].some((w) => lower.includes(w)) ||
-      finalPrompt.length < 20;
 
-    const recognizedText = attachedFiles
-      .filter((f) => f.extracted_text)
-      .map((f) => `--- Attached Questions from ${f.filename} ---\n${f.extracted_text}\n--- End Questions ---`)
-      .join('\n\n');
-
-    if (attachedFiles.length > 0 && isSolveIntent) {
-      finalPrompt = "Please solve all questions, mathematical problems, and exercises in the attached image/question paper in complete detail step-by-step." +
-        (finalPrompt ? ` (User note: ${finalPrompt})` : "");
-      if (recognizedText) {
-        finalPrompt += `\n\n[Recognized Image Text & Questions from Upload]:\n${recognizedText}`;
-      }
-    } else if (!finalPrompt && attachedFiles.length > 0) {
+    if (!finalPrompt && attachedFiles.length > 0) {
       const hasImg = attachedFiles.some((f) =>
-        f.media_type === 'image' || f.filename?.match(/\.(png|jpg|jpeg|webp)$/i)
+        f.media_type === 'image' || f.filename?.match(/\.(png|jpg|jpeg|webp|gif|bmp)$/i)
       );
       finalPrompt = hasImg
-        ? "Please analyze and solve the problems in this attached image/screenshot in detail."
+        ? "Please analyze this attached image thoroughly. If it contains questions or problems, solve them step-by-step. If it contains a diagram, flowchart, code error, or photograph, explain and describe all visible details."
         : "Please review and explain the attached document.";
-      if (recognizedText) {
-        finalPrompt += `\n\n[Recognized Image Text & Questions from Upload]:\n${recognizedText}`;
-      }
-    } else if (recognizedText) {
-      finalPrompt += `\n\n[Attached Questions Content]:\n${recognizedText}`;
     }
 
     if (isThinking && !finalPrompt.toLowerCase().startsWith('think') && !finalPrompt.toLowerCase().startsWith('reason')) {

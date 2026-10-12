@@ -110,35 +110,14 @@ export function ChatComposer({ onOpenDocModal, theme }) {
     if ((!input.trim() && attachedFiles.length === 0) || isStreaming || uploadingFile) return;
     
     let textToSend = input.trim();
-    const lower = textToSend.toLowerCase();
-    const isSolveIntent =
-      !textToSend ||
-      ['answer', 'anser', 'ans', 'solve', 'solution', 'ques', 'question', 'উত্তর', 'সমাধান', 'প্রশ্ন', 'exam', 'paper'].some((w) => lower.includes(w)) ||
-      textToSend.length < 20;
 
-    const recognizedText = attachedFiles
-      .filter((f) => f.extracted_text)
-      .map((f) => `--- Attached Questions from ${f.filename} ---\n${f.extracted_text}\n--- End Questions ---`)
-      .join('\n\n');
-
-    if (attachedFiles.length > 0 && isSolveIntent) {
-      textToSend = "Please solve all questions, mathematical problems, and exercises in the attached image/question paper in complete detail step-by-step." +
-        (textToSend ? ` (User note: ${textToSend})` : "");
-      if (recognizedText) {
-        textToSend += `\n\n[Recognized Image Text & Questions from Upload]:\n${recognizedText}`;
-      }
-    } else if (!textToSend && attachedFiles.length > 0) {
-      const hasImg = attachedFiles.some((f) => f.media_type === 'image' || f.filename?.match(/\.(png|jpg|jpeg|webp)$/i));
-      textToSend = hasImg
-        ? "Please analyze and solve the problems in this attached image/screenshot in detail."
-        : "Please review and explain the attached file.";
-      if (recognizedText) {
-        textToSend += `\n\n[Recognized Image Text & Questions from Upload]:\n${recognizedText}`;
-      }
-    } else if (recognizedText) {
-      textToSend += `\n\n[Attached Questions Content]:\n${recognizedText}`;
-    } else if (imageMode && !textToSend.toLowerCase().startsWith('/image')) {
+    if (imageMode && textToSend && !textToSend.toLowerCase().startsWith('/image')) {
       textToSend = `/image ${textToSend}`;
+    } else if (!textToSend && attachedFiles.length > 0) {
+      const hasImg = attachedFiles.some((f) => f.media_type === 'image' || f.filename?.match(/\.(png|jpg|jpeg|webp|gif|bmp)$/i));
+      textToSend = hasImg
+        ? "Please analyze this attached image thoroughly. If it contains questions or problems, solve them step-by-step. If it contains a diagram, flowchart, code error, or photograph, explain and describe all visible details."
+        : "Please review and explain the attached file.";
     }
 
     setInput('');

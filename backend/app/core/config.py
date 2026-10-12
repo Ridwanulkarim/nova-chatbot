@@ -58,6 +58,39 @@ def get_default_database_url() -> str:
         return "sqlite:////tmp/nova_ai.db"
 
 
+def _clean_key(val: Optional[str]) -> Optional[str]:
+    if not val:
+        return None
+    val = val.strip().strip("\"'")
+    if not val or val.startswith("your_") or "placeholder" in val.lower() or val in ["none", "null"]:
+        return None
+    return val
+
+
+def _read_env_val(key_name: str) -> Optional[str]:
+    # Check candidate env files directly if os.environ has placeholder or missing
+    candidates = [
+        ENV_PATH,
+        PROJECT_ROOT / ".env",
+        BASE_DIR / ".env",
+        PROJECT_ROOT / "nova_ai.env",
+        BASE_DIR / "nova_ai.env",
+    ]
+    for p in candidates:
+        try:
+            if Path(p).exists():
+                with open(str(p), "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.strip().startswith(f"{key_name}="):
+                            val = line.split("=", 1)[1].strip()
+                            clean = _clean_key(val)
+                            if clean:
+                                return clean
+        except Exception:
+            continue
+    return None
+
+
 class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     PORT: int = 8000
@@ -75,8 +108,8 @@ class Settings(BaseSettings):
     GROQ_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
     
-    DEFAULT_MODEL: str = "openai/gpt-oss-120b"
-    DEFAULT_PROVIDER: str = "groq"
+    DEFAULT_MODEL: str = "gemini-3.5-flash"
+    DEFAULT_PROVIDER: str = "gemini"
     
     CORS_ORIGINS: str = "http://localhost:5180,http://127.0.0.1:5180,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,https://pluto-chatbot-it29af1oe-ridwanulkarims-projects.vercel.app,https://pluto-chatbot.vercel.app"
     UPLOAD_DIR: str = get_default_upload_dir()
@@ -95,3 +128,13 @@ class Settings(BaseSettings):
     )
 
 settings = Settings()
+
+# Post-process keys to eliminate any environment variable placeholder poisoning
+settings.OPENAI_API_KEY = _clean_key(settings.OPENAI_API_KEY) or _read_env_val("OPENAI_API_KEY")
+settings.GROQ_API_KEY = _clean_key(settings.GROQ_API_KEY) or _read_env_val("GROQ_API_KEY")
+settings.GEMINI_API_KEY = _clean_key(settings.GEMINI_API_KEY) or _read_env_val("GEMINI_API_KEY")
+
+if not settings.GEMINI_API_KEY and settings.GROQ_API_KEY:
+    settings.DEFAULT_MODEL = "openai/gpt-oss-120b"
+    settings.DEFAULT_PROVIDER = "groq"
+

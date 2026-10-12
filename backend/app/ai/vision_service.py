@@ -233,34 +233,80 @@ class VisionService:
 
         return result
 
+    def validate_and_optimize(self, data_url: str) -> Dict[str, Any]:
+        """
+        Validates, decodes, and optimizes base64 image data URLs for multimodal AI models.
+        Detects invalid formats, corrupted bytes, and resizes excessively large images.
+        """
+        import io
+        import base64
+
+        if not data_url or not isinstance(data_url, str):
+            return {"valid": False, "error": "Missing or empty image data."}
+        if not data_url.startswith("data:image"):
+            return {"valid": False, "error": "Invalid image format. Expected data URL starting with 'data:image'."}
+        try:
+            header, b64_str = data_url.split(",", 1)
+            mime = header.split(";")[0].replace("data:", "").strip()
+            img_bytes = base64.b64decode(b64_str)
+        except Exception as e:
+            return {"valid": False, "error": f"Failed to decode base64 image data: {str(e)}"}
+
+        if len(img_bytes) == 0:
+            return {"valid": False, "error": "Image file is empty (0 bytes)."}
+
+        # Size check: 20MB limit
+        if len(img_bytes) > 20 * 1024 * 1024:
+            return {"valid": False, "error": "Image exceeds maximum allowed size (20MB)."}
+
+        if not Image:
+            return {
+                "valid": True,
+                "data_url": data_url,
+                "mime_type": mime or "image/jpeg",
+                "dimensions": "unknown",
+                "size_bytes": len(img_bytes),
+            }
+
+        try:
+            with Image.open(io.BytesIO(img_bytes)) as im:
+                im.verify()
+
+            with Image.open(io.BytesIO(img_bytes)) as im:
+                w, h = im.size
+                # If image is very large (> 2048px or > 4MB), resize & compress to JPEG
+                if max(w, h) > 2048 or len(img_bytes) > 4 * 1024 * 1024:
+                    im_rgb = im.convert("RGB")
+                    im_rgb.thumbnail((2048, 2048), Image.Resampling.LANCZOS)
+                    buf = io.BytesIO()
+                    im_rgb.save(buf, format="JPEG", quality=85, optimize=True)
+                    opt_bytes = buf.getvalue()
+                    opt_b64 = base64.b64encode(opt_bytes).decode("utf-8")
+                    return {
+                        "valid": True,
+                        "data_url": f"data:image/jpeg;base64,{opt_b64}",
+                        "mime_type": "image/jpeg",
+                        "dimensions": f"{im_rgb.width}x{im_rgb.height}",
+                        "size_bytes": len(opt_bytes),
+                    }
+                return {
+                    "valid": True,
+                    "data_url": data_url,
+                    "mime_type": mime or "image/jpeg",
+                    "dimensions": f"{w}x{h}",
+                    "size_bytes": len(img_bytes),
+                }
+        except Exception as e:
+            return {"valid": False, "error": f"Corrupted or unreadable image file: {str(e)}"}
+
     def format_vision_context(self, filename: str, analysis: Dict[str, Any]) -> str:
+        """
+        Formats optional OCR transcription without robotic diagnostic error reports.
+        OCR failure is completely silent because the model inspects pixels natively.
+        """
         extracted = analysis.get("extracted_text", "").strip()
-        dim = analysis.get("dimensions", "unknown")
-        fmt = analysis.get("format", "unknown")
-
-        lines = [
-            f"--- ATTACHED SCREENSHOT / IMAGE ANALYSIS: {filename} ---",
-            f"Image Resolution: {dim} ({fmt})",
-        ]
-
-        if extracted:
-            lines.append("Recognized Text, Questions, Code & Mathematical Contents from Image:")
-            lines.append("```text")
-            lines.append(extracted)
-            lines.append("```")
-            lines.append(
-                "CRITICAL INSTRUCTION FOR PLUTO AI:\n"
-                "The user has uploaded an image containing questions/problems/notes (such as an exam question paper or exercise).\n"
-                "Carefully read all the recognized questions above and provide COMPLETE, ACCURATE, STEP-BY-STEP SOLUTIONS "
-                "for all questions shown in the document. Answer in natural Bengali or English as appropriate. "
-                "Do NOT state that text could not be read or give robotic diagnostic reports; directly answer and solve the questions!"
-            )
-        else:
-            lines.append(
-                "The user uploaded an image. If the user asks for questions or solutions, explain what you observe or provide helpful guidance politely without technical OCR error messages."
-            )
-
-        lines.append("--- END IMAGE ANALYSIS ---")
-        return "\n".join(lines)
+        if extracted and len(extracted) > 15:
+            return f"[Auxiliary OCR transcription from {filename}]:\n{extracted}"
+        return ""
 
 vision_service = VisionService()

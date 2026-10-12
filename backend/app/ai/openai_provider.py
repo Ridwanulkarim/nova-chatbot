@@ -1,7 +1,10 @@
 import asyncio
+import logging
 from typing import AsyncGenerator, Dict, Any, List, Optional
 from openai import AsyncOpenAI, APIConnectionError, RateLimitError, AuthenticationError, APIStatusError
 from app.ai.base_provider import BaseAIProvider
+
+logger = logging.getLogger("pluto.ai.openai")
 
 class OpenAIProvider(BaseAIProvider):
     def __init__(self, api_key: str, base_url: str = "https://api.openai.com/v1"):
@@ -24,7 +27,7 @@ class OpenAIProvider(BaseAIProvider):
                 "id": "gpt-4o-mini",
                 "name": "GPT-4o Mini",
                 "provider": "openai",
-                "description": "Fast, cost-effective model for everyday tasks",
+                "description": "Fast, cost-effective multimodal model for everyday tasks",
                 "context_window": 128000,
                 "supports_vision": True,
                 "supports_streaming": True,
@@ -42,12 +45,13 @@ class OpenAIProvider(BaseAIProvider):
 
     async def stream_chat(
         self,
-        messages: List[Dict[str, str]],
+        messages: List[Dict[str, Any]],
         model: str,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
     ) -> AsyncGenerator[str, None]:
         try:
+            logger.info(f"Dispatching OpenAI stream request: model={model}, messages_count={len(messages)}")
             stream = await self.client.chat.completions.create(
                 model=model,
                 messages=messages,
@@ -67,11 +71,12 @@ class OpenAIProvider(BaseAIProvider):
         except APIStatusError as e:
             yield f"\n\n**Error**: OpenAI returned status {e.status_code}: {e.message}"
         except Exception as e:
+            logger.exception("Unexpected OpenAI stream error")
             yield f"\n\n**Error**: Unexpected AI provider error: {str(e)}"
 
     async def chat(
         self,
-        messages: List[Dict[str, str]],
+        messages: List[Dict[str, Any]],
         model: str,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
@@ -86,4 +91,5 @@ class OpenAIProvider(BaseAIProvider):
             )
             return response.choices[0].message.content or ""
         except Exception as e:
+            logger.exception("Unexpected OpenAI chat error")
             return f"Error: {str(e)}"
