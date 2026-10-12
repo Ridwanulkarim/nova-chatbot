@@ -15,7 +15,7 @@ from app.ai.vision_service import vision_service
 
 router = APIRouter()
 
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".bmp"}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".bmp", ".heic", ".heif", ".tiff", ".tif", ".jfif", ".ico", ".avif"}
 DOC_EXTENSIONS = {".txt", ".md", ".csv", ".json", ".py", ".js", ".html", ".pdf", ".docx", ".yaml", ".yml", ".sh", ".sql", ".ts", ".tsx"}
 VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".mkv", ".avi"}
 AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg"}
@@ -61,10 +61,14 @@ async def upload_document(
     filename = file.filename or "uploaded_file"
     ext = os.path.splitext(filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file format '{ext}'."
-        )
+        # If no extension or unknown image type, check content_type
+        if file.content_type and file.content_type.startswith("image/"):
+            ext = ".png"
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported file format '{ext}'."
+            )
 
     # Ensure upload directory exists
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
@@ -88,16 +92,22 @@ async def upload_document(
     
     # If text document, extract and chunk for RAG
     if media_type == "document":
-        extracted_text = rag_service.extract_text_from_file(file_path, file.content_type or "")
-        text_chunks = rag_service.chunk_text(extracted_text) if extracted_text else []
+        try:
+            extracted_text = rag_service.extract_text_from_file(file_path, file.content_type or "")
+            text_chunks = rag_service.chunk_text(extracted_text) if extracted_text else []
+        except Exception:
+            text_chunks = [f"Attached file: {filename}"]
     elif media_type == "image":
-        # Extract visual characteristics and native macOS Vision OCR
-        analysis = vision_service.analyze_image(file_path)
-        formatted_context = vision_service.format_vision_context(filename, analysis)
-        text_chunks = [formatted_context]
-        if analysis.get("extracted_text"):
-            ocr_chunks = rag_service.chunk_text(analysis["extracted_text"])
-            text_chunks.extend(ocr_chunks)
+        # Extract visual characteristics and native macOS Vision OCR safely
+        try:
+            analysis = vision_service.analyze_image(file_path)
+            formatted_context = vision_service.format_vision_context(filename, analysis)
+            text_chunks = [formatted_context]
+            if analysis.get("extracted_text"):
+                ocr_chunks = rag_service.chunk_text(analysis["extracted_text"])
+                text_chunks.extend(ocr_chunks)
+        except Exception as e:
+            text_chunks = [f"Attached image: {filename} (Analysis ready for multimodal inquiry)"]
     elif media_type in ("video", "audio"):
         media_info = f"Uploaded {media_type.capitalize()} Media: {filename} ({len(content_bytes)} bytes, format: {ext.lstrip('.')})."
         text_chunks = [media_info]

@@ -17,6 +17,7 @@ export function ChatComposer({ onOpenDocModal, theme }) {
     selectedModel,
     availableModels,
     setSelectedModel,
+    setErrorMessage,
   } = useChat();
 
   const [input, setInput] = useState('');
@@ -28,8 +29,8 @@ export function ChatComposer({ onOpenDocModal, theme }) {
 
   const { isListening, startListening, stopListening, hasSpeechRecognition, language, setLanguage } = useVoiceAssistant();
 
-  const API_HOST = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:8000'
+  const API_HOST = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0')
+    ? (window.location.port === '5180' ? '' : 'http://localhost:8000')
     : '';
 
   // Auto-resize textarea
@@ -52,6 +53,9 @@ export function ChatComposer({ onOpenDocModal, theme }) {
       }
     } catch (err) {
       console.error('File upload failed:', err);
+      if (setErrorMessage) {
+        setErrorMessage(err.message || 'Image upload failed. Please try again.');
+      }
     } finally {
       setUploadingFile(false);
     }

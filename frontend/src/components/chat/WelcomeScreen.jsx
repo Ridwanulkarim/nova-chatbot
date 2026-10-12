@@ -33,6 +33,7 @@ export function WelcomeScreen({
     attachedFiles,
     setAttachedFiles,
     isStreaming,
+    setErrorMessage,
   } = useChat();
 
   const { user } = useAuth();
@@ -65,6 +66,9 @@ export function WelcomeScreen({
       }
     } catch (err) {
       console.error('File upload failed:', err);
+      if (setErrorMessage) {
+        setErrorMessage(err.message || 'Image upload failed. Please try again.');
+      }
     } finally {
       setUploadingFile(false);
     }
@@ -162,7 +166,9 @@ export function WelcomeScreen({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className="flex-1 flex flex-col items-center justify-center px-4 w-full max-w-3xl mx-auto my-auto relative select-none"
+      onPaste={handlePaste}
+      tabIndex={0}
+      className="flex-1 flex flex-col items-center justify-center px-4 w-full max-w-3xl mx-auto my-auto relative select-none focus:outline-none"
     >
       {/* Drag & Drop Visual Overlay */}
       {isDragging && (
@@ -286,6 +292,24 @@ export function WelcomeScreen({
                 </button>
               </div>
             )}
+            {/* Direct Photo Attachment Button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingFile}
+              className={`p-1.5 rounded-full transition-colors ${
+                isLight
+                  ? 'text-purple-600 hover:text-purple-800 hover:bg-purple-100'
+                  : 'text-purple-400 hover:text-white hover:bg-white/10'
+              }`}
+              title="ছবি বা ফাইল আপলোড করুন (Upload Image/File)"
+            >
+              {uploadingFile ? (
+                <Loader2 size={18} className="animate-spin text-purple-500" />
+              ) : (
+                <ImageIcon size={18} />
+              )}
+            </button>
           </div>
 
           {/* Hidden File Input */}
@@ -294,6 +318,7 @@ export function WelcomeScreen({
             ref={fileInputRef}
             onChange={(e) => {
               if (e.target.files) handleFiles(e.target.files);
+              e.target.value = '';
             }}
             multiple
             accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.csv,.json,.py,.js"

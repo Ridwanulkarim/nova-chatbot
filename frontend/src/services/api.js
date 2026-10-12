@@ -1,18 +1,20 @@
-const API_HOST = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  ? 'http://localhost:8000'
+const API_HOST = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0')
+  ? (window.location.port === '5180' ? '' : 'http://localhost:8000')
   : '');
 
 export const API_BASE = `${API_HOST}/api/v1`;
 
 export const getAuthToken = () => {
-  return localStorage.getItem('nova_ai_token');
+  return localStorage.getItem('nova_ai_token') || localStorage.getItem('pluto_ai_token');
 };
 
 export const setAuthToken = (token) => {
   if (token) {
     localStorage.setItem('nova_ai_token', token);
+    localStorage.setItem('pluto_ai_token', token);
   } else {
     localStorage.removeItem('nova_ai_token');
+    localStorage.removeItem('pluto_ai_token');
   }
 };
 

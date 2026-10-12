@@ -20,8 +20,8 @@ export async function streamMessage({
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const apiHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:8000'
+  const apiHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0')
+    ? (window.location.port === '5180' ? '' : 'http://localhost:8000')
     : '';
 
   try {
