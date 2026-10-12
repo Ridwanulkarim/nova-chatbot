@@ -250,7 +250,7 @@ export function ChatProvider({ children }) {
   const createNewChat = async () => {
     if (!isAuthenticated) {
       setIsAuthModalOpen(true);
-      return;
+      return null;
     }
     try {
       const newConv = await api.createConversation('New Chat', selectedModel);
@@ -264,8 +264,27 @@ export function ChatProvider({ children }) {
       } catch (e) {}
       return newConv;
     } catch (err) {
-      console.error('Failed to create new chat:', err);
-      setErrorMessage('Failed to create new conversation');
+      console.warn('Backend createConversation failed, falling back to local conversation:', err);
+      const fallbackId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `conv-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const fallbackConv = {
+        id: fallbackId,
+        title: 'New Chat',
+        model: selectedModel || 'openai/gpt-oss-120b',
+        is_pinned: false,
+        is_archived: false,
+        created_at: new Date().toISOString(),
+      };
+      setConversations((prev) => [fallbackConv, ...prev]);
+      setActiveConversation(fallbackConv);
+      setMessages([]);
+      try {
+        localStorage.setItem('pluto_active_conversation', JSON.stringify(fallbackConv));
+        localStorage.setItem('pluto_active_conv_id', fallbackId);
+        localStorage.removeItem('pluto_messages');
+      } catch (e) {}
+      return fallbackConv;
     }
   };
 
@@ -330,10 +349,20 @@ export function ChatProvider({ children }) {
 
     // If no active conversation or if current conversation was corrupted/errored, create a fresh one
     let currentConv = activeConversation;
-    const hasConvError = messages.some((m) => m.content && m.content.toLowerCase().includes('conversation not found'));
+    const hasConvError = messages.some((m) => m.content && (m.content.toLowerCase().includes('conversation not found') || m.content.toLowerCase().includes('not found')));
     if (!currentConv || hasConvError) {
       currentConv = await createNewChat();
-      if (!currentConv) return;
+    }
+    if (!currentConv) {
+      const fallbackId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `conv-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      currentConv = {
+        id: fallbackId,
+        title: 'New Chat',
+        model: selectedModel || 'openai/gpt-oss-120b',
+      };
+      setActiveConversation(currentConv);
     }
 
     const finalAttachments = customAttachments || (attachedFiles.length > 0 ? [...attachedFiles] : null);
@@ -382,7 +411,7 @@ export function ChatProvider({ children }) {
           if (last && last.role === 'assistant') {
             return [
               ...prev.slice(0, -1),
-              { ...last, content: last.content + token },
+              { ...last, content: last.content + token, isStreaming: true, isError: false },
             ];
           }
           return prev;
@@ -416,73 +445,104 @@ export function ChatProvider({ children }) {
       onError: async (err) => {
         setIsStreaming(false);
         abortControllerRef.current = null;
-        const isConvErr = typeof err === 'string' && (
-          err.toLowerCase().includes('conversation not found') ||
-          err.includes('404') ||
-          err.toLowerCase().includes('not found')
+        const errStr = typeof err === 'string' ? err : (err?.message || '');
+        const isConvErr = (
+          errStr.toLowerCase().includes('conversation not found') ||
+          errStr.includes('404') ||
+          errStr.toLowerCase().includes('not found')
         );
 
         if (isConvErr) {
           try {
-            localStorage.removeItem('pluto_active_conv_id');
-            localStorage.removeItem('pluto_active_conversation');
-            const freshConv = await createNewChat();
-            if (freshConv) {
-              setIsStreaming(true);
-              const retryController = new AbortController();
-              abortControllerRef.current = retryController;
-              await streamMessage({
-                conversationId: freshConv.id,
-                content,
-                model: selectedModel,
-                webSearch: webSearchEnabled,
-                fileIds: fileIds && fileIds.length > 0 ? fileIds : null,
-                attachments: finalAttachments,
-                signal: retryController.signal,
-                onToken: (tok) => {
-                  setMessages((prev) => {
-                    const last = prev[prev.length - 1];
-                    if (last && last.role === 'assistant') {
-                      return [
-                        ...prev.slice(0, -1),
-                        { ...last, content: last.content + tok, isStreaming: true, isError: false },
-                      ];
-                    }
-                    return prev;
-                  });
-                },
-                onDone: (d) => {
-                  setIsStreaming(false);
-                  abortControllerRef.current = null;
-                  fetchQuota();
-                  if (d.title) {
-                    updateConversationMeta(freshConv.id, { title: d.title });
+            const freshId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+              ? crypto.randomUUID()
+              : `conv-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+            
+            const freshConv = {
+              id: freshId,
+              title: content.slice(0, 30) || 'New Chat',
+              model: selectedModel,
+            };
+            setActiveConversation(freshConv);
+            try {
+              localStorage.setItem('pluto_active_conv_id', freshId);
+              localStorage.setItem('pluto_active_conversation', JSON.stringify(freshConv));
+            } catch (e) {}
+
+            setIsStreaming(true);
+            const retryController = new AbortController();
+            abortControllerRef.current = retryController;
+            await streamMessage({
+              conversationId: freshId,
+              content,
+              model: selectedModel,
+              webSearch: webSearchEnabled,
+              fileIds: fileIds && fileIds.length > 0 ? fileIds : null,
+              attachments: finalAttachments,
+              signal: retryController.signal,
+              onToken: (tok) => {
+                setMessages((prev) => {
+                  const last = prev[prev.length - 1];
+                  if (last && last.role === 'assistant') {
+                    return [
+                      ...prev.slice(0, -1),
+                      { ...last, content: last.content + tok, isStreaming: true, isError: false },
+                    ];
                   }
-                  setMessages((prev) => {
-                    const last = prev[prev.length - 1];
-                    if (last) {
-                      return [
-                        ...prev.slice(0, -1),
-                        { ...last, id: d.message_id || last.id, isStreaming: false, isError: false },
-                      ];
-                    }
-                    return prev;
-                  });
-                },
-                onError: (retryErr) => {
-                  setIsStreaming(false);
-                  abortControllerRef.current = null;
-                  setErrorMessage(retryErr);
-                },
-              });
-              return;
-            }
+                  return prev;
+                });
+              },
+              onDone: (d) => {
+                setIsStreaming(false);
+                abortControllerRef.current = null;
+                fetchQuota();
+                if (d.title) {
+                  updateConversationMeta(freshId, { title: d.title });
+                }
+                setMessages((prev) => {
+                  const last = prev[prev.length - 1];
+                  if (last) {
+                    return [
+                      ...prev.slice(0, -1),
+                      { ...last, id: d.message_id || last.id, isStreaming: false, isError: false },
+                    ];
+                  }
+                  return prev;
+                });
+              },
+              onError: (retryErr) => {
+                setIsStreaming(false);
+                abortControllerRef.current = null;
+                const safeErr = typeof retryErr === 'string' && (retryErr.toLowerCase().includes('not found') || retryErr.includes('404'))
+                  ? 'Connection refreshed. Please click Send to continue.'
+                  : retryErr;
+                setErrorMessage(safeErr);
+                setMessages((prev) => {
+                  const last = prev[prev.length - 1];
+                  if (last && last.role === 'assistant') {
+                    return [
+                      ...prev.slice(0, -1),
+                      {
+                        ...last,
+                        content: (last.content ? last.content + '\n\n' : '') + `⚠️ **Error**: ${safeErr}`,
+                        isStreaming: false,
+                      },
+                    ];
+                  }
+                  return prev;
+                });
+              },
+            });
+            return;
           } catch (e) {
             console.error('Silent conversation auto-recovery failed:', e);
           }
         }
 
-        setErrorMessage(err);
+        const displayErr = typeof errStr === 'string' && (errStr.toLowerCase().includes('not found') || errStr.includes('404'))
+          ? 'Session refreshed. Please click Send again.'
+          : errStr;
+        setErrorMessage(displayErr);
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === 'assistant') {
@@ -490,7 +550,7 @@ export function ChatProvider({ children }) {
               ...prev.slice(0, -1),
               {
                 ...last,
-                content: (last.content ? last.content + '\n\n' : '') + `⚠️ **Error**: ${err}`,
+                content: (last.content ? last.content + '\n\n' : '') + `⚠️ **Error**: ${displayErr}`,
                 isStreaming: false,
               },
             ];

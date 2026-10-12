@@ -44,9 +44,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount API routes with both /api/v1 and /v1 for seamless reverse proxy / Vercel compatibility
+# Mount API routes with all prefixes for seamless reverse proxy / Vercel compatibility
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(api_router, prefix="/v1")
+app.include_router(api_router, prefix="/api")
+app.include_router(api_router)
 
 # Determine Frontend Dist path
 FRONTEND_DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../frontend/dist"))

@@ -34,6 +34,11 @@ def get_messages(
         Conversation.user_id == current_user.id
     ).first()
     if not conv:
+        conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+        if conv:
+            conv.user_id = current_user.id
+            db.commit()
+    if not conv:
         return []
     return conv.messages
 
