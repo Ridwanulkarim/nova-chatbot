@@ -34,10 +34,7 @@ def get_messages(
         Conversation.user_id == current_user.id
     ).first()
     if not conv:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found"
-        )
+        return []
     return conv.messages
 
 from app.core.quota import check_and_consume_message_quota, check_and_consume_image_quota
@@ -197,7 +194,7 @@ async def stream_message(
         for a in msg_in.attachments:
             m_type = (a.get("media_type") or a.get("type", "file")).lower()
             f_name = a.get("filename") or a.get("name", "file")
-            f_url = a.get("url", "")
+            f_url = a.get("data_url") or a.get("url", "")
             
             # Check if this is an image/screenshot
             is_image = m_type == "image" or any(f_name.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"])

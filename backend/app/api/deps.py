@@ -15,6 +15,23 @@ def get_current_user(
         if payload and "sub" in payload:
             user_id = payload["sub"]
             user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                # Auto-heal JWT-verified user across ephemeral serverless instances
+                email = payload.get("email") or f"user_{user_id[:8]}@pluto-ai.local"
+                user = User(
+                    id=user_id,
+                    email=email,
+                    full_name="Pluto User",
+                    hashed_password="verified_jwt_session",
+                    is_active=True
+                )
+                db.add(user)
+                try:
+                    db.commit()
+                    db.refresh(user)
+                except Exception:
+                    db.rollback()
+                    user = db.query(User).filter(User.id == user_id).first()
             if user and user.is_active:
                 return user
 
@@ -47,4 +64,21 @@ def get_optional_current_user(
     if not payload or "sub" not in payload:
         return None
     user_id = payload["sub"]
-    return db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user:
+        email = payload.get("email") or f"user_{user_id[:8]}@pluto-ai.local"
+        user = User(
+            id=user_id,
+            email=email,
+            full_name="Pluto User",
+            hashed_password="verified_jwt_session",
+            is_active=True
+        )
+        db.add(user)
+        try:
+            db.commit()
+            db.refresh(user)
+        except Exception:
+            db.rollback()
+            user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    return user
