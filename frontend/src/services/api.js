@@ -203,6 +203,69 @@ export const api = {
       reader.readAsDataURL(file);
     });
 
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const isImg = file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext);
+
+    // Parallel Client OCR for images
+    const clientOcrPromise = isImg && localDataUrl ? (async () => {
+      try {
+        const img = new window.Image();
+        const loaded = await new Promise((res) => {
+          img.onload = () => res(true);
+          img.onerror = () => res(false);
+          img.src = localDataUrl;
+        });
+        if (!loaded) return '';
+
+        const maxDim = 1200;
+        let w = img.width;
+        let h = img.height;
+        if (Math.max(w, h) > maxDim) {
+          const scale = maxDim / Math.max(w, h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+        const keys = ['K82367761188957', 'K88726598588957', 'K86522521188957', 'helloworld'];
+        for (const k of keys) {
+          try {
+            const formData = new FormData();
+            formData.append('base64Image', jpegDataUrl);
+            formData.append('apikey', k);
+            formData.append('language', 'eng');
+            formData.append('OCREngine', '2');
+            formData.append('detectOrientation', 'true');
+            formData.append('scale', 'true');
+
+            const ocrResp = await fetch('https://api.ocr.space/parse/image', {
+              method: 'POST',
+              body: formData,
+            });
+            if (ocrResp.ok) {
+              const resJson = await ocrResp.json();
+              const text = resJson?.ParsedResults?.[0]?.ParsedText?.trim();
+              if (text && text.length > 15) {
+                return text;
+              }
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+      } catch (err) {
+        console.warn('Client OCR error:', err);
+      }
+      return '';
+    })() : Promise.resolve('');
+
+    let backendData = null;
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -212,34 +275,39 @@ export const api = {
         body: formData,
       });
       if (res.ok) {
-        const data = await res.json();
-        if (localDataUrl && !data.data_url) {
-          data.data_url = localDataUrl;
-        }
-        return data;
+        backendData = await res.json();
       }
-      console.warn('Backend file upload returned non-OK, falling back to local data URL');
     } catch (err) {
-      console.warn('Network file upload failed, falling back to local data URL:', err);
+      console.warn('Backend file upload network error:', err);
     }
 
-    // Client-side fallback: Convert file to Base64 data URL so attachments and visual prompts always succeed!
-    const ext = (file.name.split('.').pop() || '').toLowerCase();
-    const isImg = file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext);
+    let finalExtractedText = backendData?.extracted_text || '';
+    if (!finalExtractedText && isImg) {
+      try {
+        finalExtractedText = await Promise.race([
+          clientOcrPromise,
+          new Promise((r) => setTimeout(() => r(''), 5000))
+        ]);
+      } catch (e) {
+        finalExtractedText = '';
+      }
+    }
+
     const isVid = file.type.startsWith('video/') || ['mp4', 'webm', 'mov'].includes(ext);
     const isAud = file.type.startsWith('audio/') || ['mp3', 'wav', 'ogg'].includes(ext);
     const mediaType = isImg ? 'image' : isVid ? 'video' : isAud ? 'audio' : 'document';
 
     return {
-      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: backendData?.id || `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       filename: file.name,
       file_size: file.size,
       mime_type: file.type || 'application/octet-stream',
-      chunk_count: 1,
-      url: localDataUrl,
+      chunk_count: backendData?.chunk_count || 1,
+      url: backendData?.url || localDataUrl,
       data_url: localDataUrl,
       media_type: mediaType,
-      created_at: new Date().toISOString(),
+      extracted_text: finalExtractedText || null,
+      created_at: backendData?.created_at || new Date().toISOString(),
     };
   },
 
