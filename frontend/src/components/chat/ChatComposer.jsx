@@ -160,7 +160,8 @@ export function ChatComposer({ onOpenDocModal, theme }) {
       {attachedFiles.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2.5 px-1 max-h-36 overflow-y-auto">
           {attachedFiles.map((f) => {
-            const isImg = f.media_type === 'image' || f.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+            const isImg = f.media_type === 'image' || f.url?.match(/\.(jpeg|jpg|gif|png|webp|bmp)$/i);
+            const isVid = f.media_type === 'video' || f.url?.match(/\.(mp4|webm|mov)$/i);
             const rawUrl = f.data_url || f.url || '';
             const fUrl = rawUrl ? (rawUrl.startsWith('/') ? `${API_HOST}${rawUrl}` : rawUrl) : '';
 

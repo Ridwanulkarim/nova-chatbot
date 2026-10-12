@@ -383,10 +383,30 @@ export function ChatProvider({ children }) {
       setActiveConversation(currentConv);
     }
 
-    const finalAttachments = customAttachments || (attachedFiles.length > 0 ? [...attachedFiles] : null);
+    let finalAttachments = customAttachments || (attachedFiles.length > 0 ? [...attachedFiles] : null);
 
-    const hasImages = (finalAttachments || []).some(
-      (f) => f.media_type === 'image' || (f.filename && f.filename.match(/\.(png|jpg|jpeg|webp|gif|bmp)$/i))
+    // If user is asking a follow-up question in the same conversation without re-uploading the image,
+    // carry forward the most recent image attachment from this conversation so stateless serverless calls still see it
+    let carriedAttachments = null;
+    if (!finalAttachments && messages.length > 0) {
+      for (let i = messages.length - 1; i >= Math.max(0, messages.length - 6); i--) {
+        const m = messages[i];
+        if (m.role === 'user' && m.attachments) {
+          try {
+            const parsed = typeof m.attachments === 'string' ? JSON.parse(m.attachments) : m.attachments;
+            if (Array.isArray(parsed) && parsed.some((a) => a.media_type === 'image' || a.data_url?.startsWith('data:image'))) {
+              carriedAttachments = parsed;
+              break;
+            }
+          } catch (e) {}
+        }
+      }
+    }
+
+    const effectiveAttachments = finalAttachments || carriedAttachments;
+
+    const hasImages = (effectiveAttachments || []).some(
+      (f) => f.media_type === 'image' || f.data_url?.startsWith('data:image') || (f.filename && f.filename.match(/\.(png|jpg|jpeg|webp|gif|bmp)$/i))
     );
     let modelToUse = selectedModel;
     if (hasImages && (!modelToUse || modelToUse.includes('oss') || modelToUse.includes('qwen') || modelToUse.includes('llama') || modelToUse.includes('groq'))) {
@@ -421,7 +441,11 @@ export function ChatProvider({ children }) {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    const fileIds = finalAttachments ? finalAttachments.map((f) => f.id) : null;
+    const fileIds = finalAttachments
+      ? finalAttachments
+          .filter((f) => f.media_type !== 'image' && !f.data_url?.startsWith('data:image'))
+          .map((f) => f.id)
+      : null;
 
     await streamMessage({
       conversationId: currentConv.id,
@@ -429,7 +453,7 @@ export function ChatProvider({ children }) {
       model: modelToUse,
       webSearch: webSearchEnabled,
       fileIds: fileIds && fileIds.length > 0 ? fileIds : null,
-      attachments: finalAttachments,
+      attachments: effectiveAttachments,
       signal: controller.signal,
       onToken: (token) => {
         setMessages((prev) => {
@@ -487,7 +511,7 @@ export function ChatProvider({ children }) {
             const freshConv = {
               id: freshId,
               title: content.slice(0, 30) || 'New Chat',
-              model: selectedModel,
+              model: modelToUse,
             };
             setActiveConversation(freshConv);
             try {
@@ -501,10 +525,10 @@ export function ChatProvider({ children }) {
             await streamMessage({
               conversationId: freshId,
               content,
-              model: selectedModel,
+              model: modelToUse,
               webSearch: webSearchEnabled,
               fileIds: fileIds && fileIds.length > 0 ? fileIds : null,
-              attachments: finalAttachments,
+              attachments: effectiveAttachments,
               signal: retryController.signal,
               onToken: (tok) => {
                 setMessages((prev) => {

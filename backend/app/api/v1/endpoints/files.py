@@ -105,72 +105,61 @@ async def upload_document(
 
     media_type = detect_media_type(ext)
     
-    # Generate URL: for images, embed base64 data URL so that preview & vision always work on Vercel
+    # Generate URL: for images, embed optimized base64 data URL so preview & native vision always work on Vercel
     image_url = f"/uploads/{stored_name}"
     if media_type == "image":
         try:
             b64 = base64.b64encode(content_bytes).decode("utf-8")
             mime = file.content_type or f"image/{ext.lstrip('.')}"
-            image_url = f"data:{mime};base64,{b64}"
+            raw_data_url = f"data:{mime};base64,{b64}"
+            opt = vision_service.validate_and_optimize(raw_data_url)
+            image_url = opt["data_url"] if opt.get("valid") and opt.get("data_url") else raw_data_url
         except Exception:
             pass
 
     text_chunks = []
     
-    # If text document, extract and chunk for RAG
+    # Only index text documents (PDF, TXT, DOCX, etc.) into RAG chunks — images use direct multimodal vision
     if media_type == "document":
         try:
             extracted_text = rag_service.extract_text_from_file(file_path, file.content_type or "")
             text_chunks = rag_service.chunk_text(extracted_text) if extracted_text else []
         except Exception:
-            text_chunks = [f"Attached file: {filename}"]
-    elif media_type == "image":
-        # Extract visual characteristics safely
-        try:
-            analysis = vision_service.analyze_image(file_path)
-            formatted_context = vision_service.format_vision_context(filename, analysis)
-            text_chunks = [formatted_context]
-            if analysis.get("extracted_text"):
-                ocr_chunks = rag_service.chunk_text(analysis["extracted_text"])
-                text_chunks.extend(ocr_chunks)
-        except Exception:
-            text_chunks = [f"Attached image: {filename} (Ready for multimodal inspection)"]
-    elif media_type in ("video", "audio"):
-        media_info = f"Uploaded {media_type.capitalize()} Media: {filename} ({len(content_bytes)} bytes, format: {ext.lstrip('.')})."
-        text_chunks = [media_info]
+            text_chunks = []
 
     doc_id = str(uuid.uuid4())
-    # Save document and chunks to DB with fallback for serverless
-    try:
-        doc = Document(
-            id=doc_id,
-            user_id=current_user.id,
-            filename=filename,
-            file_path=file_path,
-            file_size=len(content_bytes),
-            mime_type=file.content_type or "application/octet-stream",
-            chunk_count=len(text_chunks)
-        )
-        db.add(doc)
-        db.flush()
-
-        for idx, chunk_content in enumerate(text_chunks):
-            chunk = DocumentChunk(
-                document_id=doc.id,
-                chunk_index=idx,
-                content=chunk_content
-            )
-            db.add(chunk)
-
-        db.commit()
-        db.refresh(doc)
-        created_at = doc.created_at
-    except Exception as db_err:
+    # Save document and chunks to DB for non-image documents
+    created_at = datetime.utcnow()
+    if media_type == "document" and text_chunks:
         try:
-            db.rollback()
+            doc = Document(
+                id=doc_id,
+                user_id=current_user.id,
+                filename=filename,
+                file_path=file_path,
+                file_size=len(content_bytes),
+                mime_type=file.content_type or "application/octet-stream",
+                chunk_count=len(text_chunks)
+            )
+            db.add(doc)
+            db.flush()
+
+            for idx, chunk_content in enumerate(text_chunks):
+                chunk = DocumentChunk(
+                    document_id=doc.id,
+                    chunk_index=idx,
+                    content=chunk_content
+                )
+                db.add(chunk)
+
+            db.commit()
+            db.refresh(doc)
+            created_at = doc.created_at
         except Exception:
-            pass
-        created_at = datetime.utcnow()
+            try:
+                db.rollback()
+            except Exception:
+                pass
 
     return {
         "id": doc_id,
@@ -181,7 +170,7 @@ async def upload_document(
         "url": f"/uploads/{stored_name}",
         "data_url": image_url if image_url.startswith("data:") else None,
         "media_type": media_type,
-        "extracted_text": analysis.get("extracted_text", "") if (media_type == "image" and "analysis" in locals()) else None,
+        "extracted_text": None,
         "created_at": created_at
     }
 

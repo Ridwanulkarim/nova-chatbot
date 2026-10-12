@@ -195,51 +195,48 @@ export const api = {
   },
 
   async uploadDocument(file) {
-    // Read local data URL immediately so image bytes are guaranteed to be available
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const isImg = file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp'].includes(ext);
+
+    // Read & optimize local data URL immediately so image bytes are guaranteed to be compact and available
     const localDataUrl = await new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
+      reader.onload = () => {
+        const rawDataUrl = reader.result;
+        if (!isImg || ext === 'svg' || ext === 'gif' || typeof Image === 'undefined') {
+          resolve(rawDataUrl);
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const MAX_DIM = 1600;
+            let { width, height } = img;
+            if (width > MAX_DIM || height > MAX_DIM) {
+              const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+              width = Math.round(width * ratio);
+              height = Math.round(height * ratio);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            // Fill white background for transparent PNGs converted to JPEG
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.85);
+            resolve(compressed || rawDataUrl);
+          } catch (e) {
+            resolve(rawDataUrl);
+          }
+        };
+        img.onerror = () => resolve(rawDataUrl);
+        img.src = rawDataUrl;
+      };
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(file);
     });
-
-    const ext = (file.name.split('.').pop() || '').toLowerCase();
-    const isImg = file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext);
-
-    // Parallel Client OCR for images
-    const clientOcrPromise = isImg ? (async () => {
-      try {
-        const keys = ['K82367761188957', 'K88726598588957', 'K86522521188957', 'helloworld'];
-        for (const k of keys) {
-          try {
-            const formData = new FormData();
-            formData.append('file', file, file.name || 'image.png');
-            formData.append('apikey', k);
-            formData.append('language', 'eng');
-            formData.append('OCREngine', '2');
-            formData.append('detectOrientation', 'true');
-            formData.append('scale', 'true');
-
-            const ocrResp = await fetch('https://api.ocr.space/parse/image', {
-              method: 'POST',
-              body: formData,
-            });
-            if (ocrResp.ok) {
-              const resJson = await ocrResp.json();
-              const text = resJson?.ParsedResults?.[0]?.ParsedText?.trim();
-              if (text && text.length > 15) {
-                return text;
-              }
-            }
-          } catch (e) {
-            continue;
-          }
-        }
-      } catch (err) {
-        console.warn('Client OCR error:', err);
-      }
-      return '';
-    })() : Promise.resolve('');
 
     let backendData = null;
     try {
@@ -257,18 +254,6 @@ export const api = {
       console.warn('Backend file upload network error:', err);
     }
 
-    let finalExtractedText = backendData?.extracted_text || '';
-    if (!finalExtractedText && isImg) {
-      try {
-        finalExtractedText = await Promise.race([
-          clientOcrPromise,
-          new Promise((r) => setTimeout(() => r(''), 5000))
-        ]);
-      } catch (e) {
-        finalExtractedText = '';
-      }
-    }
-
     const isVid = file.type.startsWith('video/') || ['mp4', 'webm', 'mov'].includes(ext);
     const isAud = file.type.startsWith('audio/') || ['mp3', 'wav', 'ogg'].includes(ext);
     const mediaType = isImg ? 'image' : isVid ? 'video' : isAud ? 'audio' : 'document';
@@ -277,12 +262,12 @@ export const api = {
       id: backendData?.id || `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       filename: file.name,
       file_size: file.size,
-      mime_type: file.type || 'application/octet-stream',
+      mime_type: isImg ? 'image/jpeg' : (file.type || 'application/octet-stream'),
       chunk_count: backendData?.chunk_count || 1,
-      url: backendData?.url || localDataUrl,
-      data_url: localDataUrl,
+      url: localDataUrl || backendData?.data_url || backendData?.url,
+      data_url: localDataUrl || backendData?.data_url,
       media_type: mediaType,
-      extracted_text: finalExtractedText || null,
+      extracted_text: backendData?.extracted_text || null,
       created_at: backendData?.created_at || new Date().toISOString(),
     };
   },

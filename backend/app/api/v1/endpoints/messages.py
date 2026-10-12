@@ -184,41 +184,51 @@ async def stream_message(
             search_context = search_service.format_search_context(results)
             citations_data = results
 
-    # Perform optional Document RAG Retrieval
+    # Perform optional Document RAG Retrieval (only for explicitly attached non-image documents)
     rag_context = ""
-    db_rag = SessionLocal()
-    try:
-        if msg_in.file_ids or True: # Check if user has uploaded docs
+    if msg_in.file_ids:
+        db_rag = SessionLocal()
+        try:
             chunks = rag_service.search_relevant_chunks(
                 db_rag,
                 user_id=current_user.id,
                 query=msg_in.content,
                 file_ids=msg_in.file_ids
             )
-            if chunks:
-                rag_context = rag_service.format_rag_context(chunks)
-    finally:
-        db_rag.close()
+            # Filter out any legacy image chunks that might exist in DB
+            img_exts = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg")
+            doc_chunks = [
+                c for c in chunks
+                if not c.get("filename", "").lower().endswith(img_exts)
+                and "Visual Media Analysis" not in c.get("content", "")
+            ]
+            if doc_chunks:
+                rag_context = rag_service.format_rag_context(doc_chunks)
+        finally:
+            db_rag.close()
 
-    # Multimodal media attachments & Vision processing
-    attached_images = []
-    auxiliary_ocr_texts = []
-    image_validation_errors = []
-
-    if msg_in.attachments:
-        for a in msg_in.attachments:
+    # Helper to extract valid image attachments from a list of attachment dicts (or JSON string)
+    def _extract_valid_images(att_list, record_errors=True):
+        if isinstance(att_list, str):
+            try:
+                att_list = json.loads(att_list)
+            except Exception:
+                return []
+        extracted = []
+        for a in (att_list or []):
+            if not isinstance(a, dict):
+                continue
             m_type = (a.get("media_type") or a.get("type", "file")).lower()
             f_name = a.get("filename") or a.get("name", "file")
             f_url = a.get("data_url") or a.get("url", "")
 
-            # Check if this is an image/screenshot
             is_image = m_type == "image" or any(
                 f_name.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]
-            )
+            ) or (isinstance(f_url, str) and f_url.startswith("data:image"))
+
             if is_image:
-                data_url = f_url if (f_url and f_url.startswith("data:image")) else None
+                data_url = f_url if (isinstance(f_url, str) and f_url.startswith("data:image")) else None
                 if not data_url and f_url:
-                    # Resolve from local file path or upload directory
                     candidates = []
                     if not f_url.startswith("http"):
                         base = os.path.basename(f_url)
@@ -244,24 +254,43 @@ async def stream_message(
                 if data_url:
                     val_res = vision_service.validate_and_optimize(data_url)
                     if not val_res.get("valid"):
-                        image_validation_errors.append(f"Image `{f_name}`: {val_res.get('error')}")
+                        if record_errors:
+                            image_validation_errors.append(f"Image `{f_name}`: {val_res.get('error')}")
                     else:
-                        attached_images.append({
+                        extracted.append({
                             "filename": f_name,
                             "data_url": val_res["data_url"],
                             "mime_type": val_res.get("mime_type", "image/jpeg"),
                             "dimensions": val_res.get("dimensions", "unknown"),
                             "size_bytes": val_res.get("size_bytes", 0),
                         })
-                else:
+                elif record_errors:
                     image_validation_errors.append(f"Image `{f_name}`: Missing image data or unreadable image file.")
 
-                # Optional supporting OCR text if available
-                ext_text = a.get("extracted_text", "").strip()
+                ext_text = (a.get("extracted_text") or "").strip()
                 if ext_text and len(ext_text) > 15:
                     auxiliary_ocr_texts.append(f"--- Text recognized from {f_name} ---\n{ext_text}")
+        return extracted
 
-    # If all uploaded images failed validation, return immediate descriptive error
+    # Multimodal media attachments & Vision processing
+    attached_images = []
+    auxiliary_ocr_texts = []
+    image_validation_errors = []
+
+    if msg_in.attachments:
+        attached_images = _extract_valid_images(msg_in.attachments, record_errors=True)
+
+    # Multi-turn Vision Continuity: If the user didn't attach a new image on this turn,
+    # check if a recent user message in this conversation had an uploaded image (e.g. Turn 1: uploads image, Turn 2: "solve this")
+    if not attached_images and not image_validation_errors and history:
+        for past_msg in reversed(history[:-1][-6:]):
+            if past_msg.role == "user" and getattr(past_msg, "attachments", None):
+                carried = _extract_valid_images(past_msg.attachments, record_errors=False)
+                if carried:
+                    attached_images = carried
+                    break
+
+    # If all uploaded images on the current turn failed validation, return immediate descriptive error
     if image_validation_errors and not attached_images:
         err_msg = "⚠️ **Image Processing Error**:\n" + "\n".join(f"- {e}" for e in image_validation_errors)
         async def err_gen():
@@ -272,9 +301,11 @@ async def stream_message(
     # Construct LLM prompt message sequence
     llm_messages = []
     base_system = (
-        "You are Pluto AI, an advanced, intelligent, truthful, conversational, and helpful multimodal AI assistant like ChatGPT, Claude, and Gemini.\n"
+        "You are Pluto AI, an advanced, intelligent, truthful, conversational, and helpful multimodal AI assistant with direct native vision capabilities.\n"
         "Communicate naturally, directly, and concisely. Understand the user's practical intent rather than over-complicating questions with unintended abstractions.\n"
         "You are completely fluent in both Bengali (বাংলা) and English. When a user writes, speaks, or asks in Bengali (or Bengali script / Banglish), respond in natural, grammatically correct, eloquent, and culturally authentic Bengali (বাংলা).\n"
+        "VISION CAPABILITY DIRECTIVE: When an image is attached, you can see the actual pixels, text, equations, handwriting, diagrams, code screenshots, UI elements, and photographs directly. "
+        "NEVER claim that you cannot see images, NEVER claim that an image contains no recognizable text because of OCR, and NEVER output generic OCR failure disclaimers. Always inspect and explain the visual content directly.\n"
         "When requested for translation or in voice translation mode, provide immediate, accurate, and idiomatic translations between Bengali and English.\n"
         "When answering questions like '1+1 how', explain clearly how 1 + 1 equals 2 using simple arithmetic and intuitive examples (e.g. starting with 1 unit and adding 1 more unit gives 2 units).\n"
         "Never interpret conversational English words (such as 'how', 'why', 'what', 'please') as literal algebraic variable multiplications.\n"
@@ -294,15 +325,25 @@ async def stream_message(
 
     if math_context:
         base_system += f"\n\n{math_context}"
-    if rag_context:
+    if rag_context and not attached_images:
         base_system += f"\n\n{rag_context}"
     if search_context:
         base_system += f"\n\n{search_context}"
 
     llm_messages.append({"role": "system", "content": base_system})
 
-    # Add historical messages (clean textual representation for prior turns)
+    # Filter out any legacy OCR-refusal assistant messages from history so old turns don't poison the model
+    refusal_markers = (
+        "doesn’t contain any recognizable text",
+        "doesn't contain any recognizable text",
+        "কোনো স্পষ্ট টেক্সট সনাক্ত করা যায়নি",
+        "পাঠযোগ্য টেক্সট সনাক্ত করা যায়নি",
+        "স্ক্রিনশট থেকে কোনো পাঠ্য বের করা যায়নি",
+        "লেগিবল টেক্সট রিকগনাইজড নয়",
+    )
     for hist_msg in history[-10:]:
+        if hist_msg.role == "assistant" and any(m in (hist_msg.content or "") for m in refusal_markers):
+            continue
         llm_messages.append({"role": hist_msg.role, "content": hist_msg.content})
 
     # Build latest user turn with direct native multimodal image parts
