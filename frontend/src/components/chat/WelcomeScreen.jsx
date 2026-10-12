@@ -15,6 +15,7 @@ import {
   Boxes,
   Loader2,
   UploadCloud,
+  Send,
 } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -401,10 +402,31 @@ export function WelcomeScreen({
             <button
               type="button"
               onClick={onOpenVoiceModal}
-              className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 transition-transform hover:scale-105"
+              className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 transition-transform hover:scale-105 flex-shrink-0"
               title="Start Live Voice Assistant"
             >
               <AudioLines size={16} />
+            </button>
+
+            {/* Send Button */}
+            <button
+              type="button"
+              onClick={() => handleSend()}
+              disabled={(!input.trim() && attachedFiles.length === 0) || isStreaming || uploadingFile}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                input.trim() || attachedFiles.length > 0
+                  ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/40 hover:scale-105 active:scale-95 cursor-pointer ring-2 ring-purple-400/30'
+                  : isLight
+                  ? 'bg-purple-100 text-purple-300 cursor-not-allowed opacity-60'
+                  : 'bg-white/10 text-slate-500 cursor-not-allowed opacity-60'
+              }`}
+              title="Send message (মেসেজ পাঠান)"
+            >
+              {uploadingFile ? (
+                <Loader2 size={15} className="animate-spin text-purple-300" />
+              ) : (
+                <Send size={15} />
+              )}
             </button>
           </div>
         </div>
