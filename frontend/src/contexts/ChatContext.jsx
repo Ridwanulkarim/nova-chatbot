@@ -416,29 +416,72 @@ export function ChatProvider({ children }) {
       onError: async (err) => {
         setIsStreaming(false);
         abortControllerRef.current = null;
-        if (typeof err === 'string' && err.toLowerCase().includes('conversation not found')) {
+        const isConvErr = typeof err === 'string' && (
+          err.toLowerCase().includes('conversation not found') ||
+          err.includes('404') ||
+          err.toLowerCase().includes('not found')
+        );
+
+        if (isConvErr) {
           try {
             localStorage.removeItem('pluto_active_conv_id');
             localStorage.removeItem('pluto_active_conversation');
-            await createNewChat();
-          } catch (e) {}
-          setErrorMessage('Session refreshed. Please click Send again.');
-          setMessages((prev) => {
-            const last = prev[prev.length - 1];
-            if (last && last.role === 'assistant') {
-              return [
-                ...prev.slice(0, -1),
-                {
-                  ...last,
-                  content: 'Session refreshed. Please click Send again.',
-                  isStreaming: false,
+            const freshConv = await createNewChat();
+            if (freshConv) {
+              setIsStreaming(true);
+              const retryController = new AbortController();
+              abortControllerRef.current = retryController;
+              await streamMessage({
+                conversationId: freshConv.id,
+                content,
+                model: selectedModel,
+                webSearch: webSearchEnabled,
+                fileIds: fileIds && fileIds.length > 0 ? fileIds : null,
+                attachments: finalAttachments,
+                signal: retryController.signal,
+                onToken: (tok) => {
+                  setMessages((prev) => {
+                    const last = prev[prev.length - 1];
+                    if (last && last.role === 'assistant') {
+                      return [
+                        ...prev.slice(0, -1),
+                        { ...last, content: last.content + tok, isStreaming: true, isError: false },
+                      ];
+                    }
+                    return prev;
+                  });
                 },
-              ];
+                onDone: (d) => {
+                  setIsStreaming(false);
+                  abortControllerRef.current = null;
+                  fetchQuota();
+                  if (d.title) {
+                    updateConversationMeta(freshConv.id, { title: d.title });
+                  }
+                  setMessages((prev) => {
+                    const last = prev[prev.length - 1];
+                    if (last) {
+                      return [
+                        ...prev.slice(0, -1),
+                        { ...last, id: d.message_id || last.id, isStreaming: false, isError: false },
+                      ];
+                    }
+                    return prev;
+                  });
+                },
+                onError: (retryErr) => {
+                  setIsStreaming(false);
+                  abortControllerRef.current = null;
+                  setErrorMessage(retryErr);
+                },
+              });
+              return;
             }
-            return prev;
-          });
-          return;
+          } catch (e) {
+            console.error('Silent conversation auto-recovery failed:', e);
+          }
         }
+
         setErrorMessage(err);
         setMessages((prev) => {
           const last = prev[prev.length - 1];

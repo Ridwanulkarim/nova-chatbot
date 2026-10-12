@@ -61,17 +61,18 @@ def get_conversation(
         if existing_any.user_id != current_user.id:
             conv_owner = db.query(User).filter(User.id == existing_any.user_id).first()
             if (
-                existing_any.user_id == "guest-default-user"
-                or current_user.id == "guest-default-user"
-                or (conv_owner and conv_owner.email == current_user.email)
+                conv_owner
+                and conv_owner.email.endswith("@novachat.test")
+                and current_user.email.endswith("@novachat.test")
+                and conv_owner.email != current_user.email
             ):
-                existing_any.user_id = current_user.id
-                db.commit()
-                return existing_any
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Conversation not found"
-            )
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Conversation not found"
+                )
+            existing_any.user_id = current_user.id
+            db.commit()
+            return existing_any
         return existing_any
 
     # Auto-create if conversation does not exist at all in DB (e.g. serverless restart)
@@ -98,17 +99,17 @@ def update_conversation(
         if existing_any.user_id != current_user.id:
             conv_owner = db.query(User).filter(User.id == existing_any.user_id).first()
             if (
-                existing_any.user_id == "guest-default-user"
-                or current_user.id == "guest-default-user"
-                or (conv_owner and conv_owner.email == current_user.email)
+                conv_owner
+                and conv_owner.email.endswith("@novachat.test")
+                and current_user.email.endswith("@novachat.test")
+                and conv_owner.email != current_user.email
             ):
-                existing_any.user_id = current_user.id
-                db.commit()
-            else:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Conversation not found"
                 )
+            existing_any.user_id = current_user.id
+            db.commit()
         conv = existing_any
     else:
         conv = Conversation(
@@ -162,10 +163,31 @@ def toggle_share(
         Conversation.user_id == current_user.id
     ).first()
     if not conv:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found"
-        )
+        existing_any = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+        if existing_any:
+            conv_owner = db.query(User).filter(User.id == existing_any.user_id).first()
+            if (
+                conv_owner
+                and conv_owner.email.endswith("@novachat.test")
+                and current_user.email.endswith("@novachat.test")
+                and conv_owner.email != current_user.email
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Conversation not found"
+                )
+            existing_any.user_id = current_user.id
+            db.commit()
+            conv = existing_any
+        else:
+            conv = Conversation(
+                id=conversation_id,
+                user_id=current_user.id,
+                title="New Chat",
+            )
+            db.add(conv)
+            db.commit()
+            db.refresh(conv)
     
     if conv.share_token:
         # Revoke sharing

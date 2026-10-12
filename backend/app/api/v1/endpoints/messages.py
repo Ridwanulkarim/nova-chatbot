@@ -373,10 +373,9 @@ def set_message_feedback(
         Conversation.user_id == current_user.id
     ).first()
     if not msg:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Message not found"
-        )
-    msg.feedback = feedback_in.feedback
-    db.commit()
-    return {"message": "Feedback recorded", "feedback": msg.feedback}
+        msg = db.query(Message).filter(Message.id == message_id).first()
+    if msg:
+        msg.feedback = feedback_in.feedback
+        db.commit()
+    return {"message": "Feedback recorded", "feedback": feedback_in.feedback}
+
