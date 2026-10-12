@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Square, Globe, Paperclip, X, Mic, MicOff, Palette, Image as ImageIcon, Film, FileText, Loader2, UploadCloud } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { useVoiceAssistant } from '../../hooks/useVoiceAssistant';
-import { api } from '../../services/api';
+import { api, API_HOST } from '../../services/api';
 
 export function ChatComposer({ onOpenDocModal, theme }) {
   const isLight = theme === 'lavender-glow';
@@ -28,10 +28,6 @@ export function ChatComposer({ onOpenDocModal, theme }) {
   const fileInputRef = useRef(null);
 
   const { isListening, startListening, stopListening, hasSpeechRecognition, language, setLanguage } = useVoiceAssistant();
-
-  const API_HOST = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0')
-    ? 'http://localhost:8000'
-    : '';
 
   // Auto-resize textarea
   useEffect(() => {

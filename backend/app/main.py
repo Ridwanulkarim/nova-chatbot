@@ -24,10 +24,10 @@ app = FastAPI(
 
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
-# CORS Middleware
+# CORS Middleware - Permissive for dev, LAN, Vercel, and cloud origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
+    allow_origin_regex=".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

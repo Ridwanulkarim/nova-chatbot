@@ -1,4 +1,4 @@
-import { getAuthToken } from './api';
+import { getAuthToken, API_HOST } from './api';
 
 export async function streamMessage({
   conversationId,
@@ -20,12 +20,8 @@ export async function streamMessage({
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const apiHost = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0')
-    ? 'http://localhost:8000'
-    : '');
-
   try {
-    const response = await fetch(`${apiHost}/api/v1/conversations/${conversationId}/messages/stream`, {
+    const response = await fetch(`${API_HOST}/api/v1/conversations/${conversationId}/messages/stream`, {
       method: 'POST',
       headers,
       body: JSON.stringify({

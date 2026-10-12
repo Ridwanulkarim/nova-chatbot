@@ -1,7 +1,26 @@
-const API_HOST = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0')
-  ? 'http://localhost:8000'
-  : '');
+export const getApiHost = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  // If on HTTPS (e.g. Vercel deployment), use same-origin relative path
+  if (window.location.protocol === 'https:') {
+    return '';
+  }
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') {
+    return 'http://localhost:8000';
+  }
+  // If accessing from LAN network IP (e.g. 192.168.x.x)
+  if (hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+    return `http://${hostname}:8000`;
+  }
+  return '';
+};
 
+export const API_HOST = getApiHost();
 export const API_BASE = `${API_HOST}/api/v1`;
 
 export const getAuthToken = () => {
