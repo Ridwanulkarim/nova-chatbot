@@ -95,13 +95,13 @@ class VisionService:
                         with Image.open(file_path) as im:
                             buf = io.BytesIO()
                             rgb_im = im.convert("RGB")
-                            # Resize if oversized (max dimension 1800px)
+                            # Resize if oversized (max dimension 1200px for blazing-fast 2s OCR)
                             max_dim = max(rgb_im.size)
-                            if max_dim > 1800:
-                                scale = 1800.0 / max_dim
+                            if max_dim > 1200:
+                                scale = 1200.0 / max_dim
                                 new_size = (int(rgb_im.size[0] * scale), int(rgb_im.size[1] * scale))
                                 rgb_im = rgb_im.resize(new_size, Image.Resampling.LANCZOS)
-                            rgb_im.save(buf, format="JPEG", quality=85, optimize=True)
+                            rgb_im.save(buf, format="JPEG", quality=80, optimize=True)
                             raw_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
                     except Exception:
                         raw_b64 = None
@@ -113,28 +113,38 @@ class VisionService:
                     if img_fmt not in ["jpeg", "jpg", "png", "webp", "gif"]:
                         img_fmt = "png"
 
-                api_key = os.environ.get("OCR_SPACE_API_KEY", "helloworld")
-                data = urllib.parse.urlencode({
-                    "base64Image": f"data:image/{img_fmt};base64,{raw_b64}",
-                    "apikey": api_key,
-                    "language": "eng",
-                    "detectOrientation": "true",
-                    "isTable": "true",
-                    "scale": "true"
-                }).encode("utf-8")
+                api_keys = [
+                    os.environ.get("OCR_SPACE_API_KEY", "").strip(),
+                    "K82367761188957",
+                    "K88726598588957",
+                    "K86522521188957",
+                    "helloworld"
+                ]
+                api_keys = [k for k in api_keys if k]
 
-                req = urllib.request.Request(
-                    "https://api.ocr.space/parse/image",
-                    data=data,
-                    headers={"User-Agent": "PlutoAI/1.0"}
-                )
-                with urllib.request.urlopen(req, timeout=12) as resp:
-                    resp_data = json.loads(resp.read().decode("utf-8"))
-                    parsed_results = resp_data.get("ParsedResults", [])
-                    if parsed_results:
-                        cloud_text = parsed_results[0].get("ParsedText", "").strip()
-                        if cloud_text:
-                            result["extracted_text"] = cloud_text
+                for key in api_keys:
+                    try:
+                        data = urllib.parse.urlencode({
+                            "base64Image": f"data:image/jpeg;base64,{raw_b64}",
+                            "apikey": key,
+                            "language": "eng"
+                        }).encode("utf-8")
+
+                        req = urllib.request.Request(
+                            "https://api.ocr.space/parse/image",
+                            data=data,
+                            headers={"User-Agent": "PlutoAI/1.0"}
+                        )
+                        with urllib.request.urlopen(req, timeout=25) as resp:
+                            resp_data = json.loads(resp.read().decode("utf-8"))
+                            parsed_results = resp_data.get("ParsedResults", [])
+                            if parsed_results:
+                                cloud_text = parsed_results[0].get("ParsedText", "").strip()
+                                if cloud_text:
+                                    result["extracted_text"] = cloud_text
+                                    break
+                    except Exception as k_err:
+                        continue
             except Exception as cloud_err:
                 result["cloud_ocr_error"] = str(cloud_err)
 

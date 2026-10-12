@@ -110,7 +110,10 @@ export function ChatComposer({ onOpenDocModal, theme }) {
     if ((!input.trim() && attachedFiles.length === 0) || isStreaming || uploadingFile) return;
     
     let textToSend = input.trim();
-    if (!textToSend && attachedFiles.length > 0) {
+    const isShortExamPrompt = ['answer', 'anser', 'ans', 'solve', 'solve this', 'solve these', 'solve these questions', 'solution', 'উত্তর', 'সমাধান'].includes(textToSend.toLowerCase());
+    if (attachedFiles.length > 0 && isShortExamPrompt) {
+      textToSend = "Please solve all questions, mathematical problems, and exercises in the attached image/question paper in complete detail step-by-step.";
+    } else if (!textToSend && attachedFiles.length > 0) {
       const hasImg = attachedFiles.some((f) => f.media_type === 'image' || f.filename?.match(/\.(png|jpg|jpeg|webp)$/i));
       textToSend = hasImg
         ? "Please analyze and describe this attached image/screenshot in detail, reading all text and explaining what is shown."

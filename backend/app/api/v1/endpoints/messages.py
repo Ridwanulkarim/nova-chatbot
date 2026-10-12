@@ -296,11 +296,25 @@ async def stream_message(
 
     # Ensure the multimodal visual content is directly attached to the latest user message
     if multimodal_context and llm_messages and llm_messages[-1]["role"] == "user":
-        llm_messages[-1]["content"] += (
-            f"\n\n[USER UPLOADED IMAGE & QUESTION PAPER DETAILS]:\n"
+        clean_user_prompt = llm_messages[-1]["content"].strip()
+        short_intent = clean_user_prompt.lower() in [
+            "answer", "anser", "ans", "solve", "solve this", "solve these",
+            "solve these questions", "questions", "please answer", "help", "solution",
+            "উত্তর", "সমাধান", "প্রশ্ন", "answer please"
+        ]
+        
+        explicit_directive = (
+            "The user submitted an exam question paper and asked for the answers. "
+            "Please solve and provide comprehensive, step-by-step answers for ALL questions (e.g. Q1, Q2, Q3) shown in the paper."
+            if short_intent else
+            "Carefully examine the questions and text on this uploaded document/image and answer what was requested."
+        )
+
+        llm_messages[-1]["content"] = (
+            f"{clean_user_prompt}\n\n"
+            f"[ATTACHED IMAGE & QUESTION PAPER DETAILS]:\n"
             f"{multimodal_context}\n\n"
-            f"DIRECTIVE: The user uploaded this image asking for its solution. "
-            f"Carefully read each question, equation, and problem extracted above and provide complete, detailed, step-by-step solutions."
+            f"DIRECTIVE FOR PLUTO AI: {explicit_directive}"
         )
 
     # Resolve AI provider

@@ -19,6 +19,7 @@ class DocumentOut(BaseModel):
     url: Optional[str] = None
     data_url: Optional[str] = None
     media_type: Optional[str] = "document"
+    extracted_text: Optional[str] = None
     created_at: Any
 
     class Config:
