@@ -53,15 +53,26 @@ async def stream_message(
 ):
     db = SessionLocal()
     try:
-        conv = db.query(Conversation).filter(
-            Conversation.id == conversation_id,
-            Conversation.user_id == current_user.id
-        ).first()
-        if not conv:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Conversation not found"
+        existing_any = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+        if existing_any:
+            if existing_any.user_id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Conversation not found"
+                )
+            conv = existing_any
+        else:
+            # Auto-heal: If conversation does not exist at all (e.g. serverless cold start / fresh database / recycled instance),
+            # recreate it on the fly so the user NEVER encounters "Conversation not found"!
+            conv = Conversation(
+                id=conversation_id,
+                user_id=current_user.id,
+                title="New Chat",
+                model=msg_in.model or (current_user.settings.default_model if current_user.settings else settings.DEFAULT_MODEL)
             )
+            db.add(conv)
+            db.commit()
+            db.refresh(conv)
 
         # Check and consume daily message quota
         check_and_consume_message_quota(db, current_user.id)

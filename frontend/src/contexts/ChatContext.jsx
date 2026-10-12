@@ -198,6 +198,15 @@ export function ChatProvider({ children }) {
             }
           } catch (e) {}
         }
+      } else if (!searchQuery && list.length === 0) {
+        // Clear stale local storage if no conversations exist on server
+        try {
+          localStorage.removeItem('pluto_active_conv_id');
+          localStorage.removeItem('pluto_active_conversation');
+          localStorage.removeItem('pluto_messages');
+        } catch (e) {}
+        setActiveConversation(null);
+        setMessages([]);
       }
     } catch (err) {
       console.error('Failed to load conversations:', err);
@@ -229,7 +238,11 @@ export function ChatProvider({ children }) {
       return conv;
     } catch (err) {
       console.error('Failed to get conversation:', err);
-      setErrorMessage('Could not load conversation');
+      try {
+        localStorage.removeItem('pluto_active_conv_id');
+        localStorage.removeItem('pluto_active_conversation');
+      } catch (e) {}
+      return createNewChat();
     }
   };
 
@@ -399,9 +412,32 @@ export function ChatProvider({ children }) {
           });
         }
       },
-      onError: (err) => {
+      onError: async (err) => {
         setIsStreaming(false);
         abortControllerRef.current = null;
+        if (typeof err === 'string' && err.toLowerCase().includes('conversation not found')) {
+          try {
+            localStorage.removeItem('pluto_active_conv_id');
+            localStorage.removeItem('pluto_active_conversation');
+            await createNewChat();
+          } catch (e) {}
+          setErrorMessage('Session refreshed. Please click Send again.');
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'assistant') {
+              return [
+                ...prev.slice(0, -1),
+                {
+                  ...last,
+                  content: 'Session refreshed. Please click Send again.',
+                  isStreaming: false,
+                },
+              ];
+            }
+            return prev;
+          });
+          return;
+        }
         setErrorMessage(err);
         setMessages((prev) => {
           const last = prev[prev.length - 1];
