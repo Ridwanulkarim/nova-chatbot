@@ -240,7 +240,7 @@ async def stream_message(
 
     if vision_blocks:
         multimodal_context = "\n\n".join([
-            "--- VISUAL & ATTACHMENT CONTEXT FOR NOVA AI ---",
+            "--- VISUAL & ATTACHMENT CONTEXT FOR PLUTO AI ---",
             *vision_blocks,
             "Carefully review the recognized visual text, OCR layout, and image details above to answer the user's questions about their screenshot/image thoroughly and accurately.",
             "--- END ATTACHMENT CONTEXT ---"
