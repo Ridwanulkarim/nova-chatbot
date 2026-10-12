@@ -68,7 +68,7 @@ def get_conversation(
             ):
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Conversation not found"
+                    detail="Access restricted"
                 )
             existing_any.user_id = current_user.id
             db.commit()
@@ -106,7 +106,7 @@ def update_conversation(
             ):
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Conversation not found"
+                    detail="Access restricted"
                 )
             existing_any.user_id = current_user.id
             db.commit()
@@ -174,7 +174,7 @@ def toggle_share(
             ):
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Conversation not found"
+                    detail="Access restricted"
                 )
             existing_any.user_id = current_user.id
             db.commit()

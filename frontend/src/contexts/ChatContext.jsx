@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../services/api';
 import { streamMessage } from '../services/chatStream';
 import { useAuth } from './AuthContext';
@@ -55,7 +55,23 @@ export function ChatProvider({ children }) {
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [errorMessage, setErrorMessage] = useState(null);
+  const [errorMessage, _setErrorMessage] = useState(null);
+  const setErrorMessage = useCallback((msg) => {
+    if (!msg) {
+      _setErrorMessage(null);
+      return;
+    }
+    const str = typeof msg === 'string' ? msg : (msg?.message || String(msg));
+    if (
+      str.toLowerCase().includes('conversation not found') ||
+      str.toLowerCase().includes('not found') ||
+      str.includes('404')
+    ) {
+      _setErrorMessage(null);
+      return;
+    }
+    _setErrorMessage(str);
+  }, []);
   const [dailyQuota, setDailyQuota] = useState(() => {
     try {
       const saved = localStorage.getItem('pluto_daily_quota');
