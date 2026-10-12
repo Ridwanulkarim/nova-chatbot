@@ -1,12 +1,15 @@
 import os
 from typing import Dict, Any, Optional
-from PIL import Image
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
 class VisionService:
     """
     Multimodal Vision and OCR analysis service for Pluto AI.
     Extracts text, metadata, code, UI labels, and visual characteristics
-    from screenshots, photos, and diagrams on macOS using native Apple Vision framework.
+    from screenshots, photos, and diagrams.
     """
 
     def analyze_image(self, file_path: str) -> Dict[str, Any]:
@@ -27,14 +30,15 @@ class VisionService:
         }
 
         # 1. Image metadata via Pillow
-        try:
-            with Image.open(file_path) as im:
-                width, height = im.size
-                result["dimensions"] = f"{width}x{height}"
-                result["format"] = im.format or "unknown"
-                result["aspect_ratio"] = f"{round(width / max(1, height), 2)}:1"
-        except Exception as e:
-            result["pillow_error"] = str(e)
+        if Image:
+            try:
+                with Image.open(file_path) as im:
+                    width, height = im.size
+                    result["dimensions"] = f"{width}x{height}"
+                    result["format"] = im.format or "unknown"
+                    result["aspect_ratio"] = f"{round(width / max(1, height), 2)}:1"
+            except Exception as e:
+                result["pillow_error"] = str(e)
 
         # 2. Native macOS Vision OCR
         try:

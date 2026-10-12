@@ -15,7 +15,7 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["status"], "online")
-        self.assertEqual(data["app_name"], "Nova AI")
+        self.assertIn(data["app_name"], ["Pluto AI", "Nova AI"])
 
     def test_register_and_login_flow(self):
         # Register

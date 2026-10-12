@@ -118,8 +118,9 @@ export function MessageItem({ message, isLast, onEdit }) {
               {attachmentsList.length > 0 && (
                 <div className="flex flex-wrap gap-2.5 mb-3">
                   {attachmentsList.map((att, aIdx) => {
-                    const attUrl = att.url ? (att.url.startsWith('/') ? `${API_HOST}${att.url}` : att.url) : '';
-                    if (att.media_type === 'image' || att.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+                    const rawAttUrl = att.data_url || att.url || '';
+                    const attUrl = rawAttUrl ? (rawAttUrl.startsWith('/') ? `${API_HOST}${rawAttUrl}` : rawAttUrl) : '';
+                    if (att.media_type === 'image' || rawAttUrl.startsWith('data:image') || rawAttUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
                       return (
                         <div key={aIdx} className="rounded-xl overflow-hidden border border-slate-700 bg-slate-900 max-w-xs shadow-md">
                           <img src={attUrl} alt={att.filename} className="w-full h-36 object-cover hover:scale-105 transition-transform" />

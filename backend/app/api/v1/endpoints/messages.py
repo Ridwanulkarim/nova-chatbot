@@ -1,6 +1,9 @@
 import os
 import json
 import asyncio
+import uuid
+import base64
+import tempfile
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -190,13 +193,34 @@ async def stream_message(
             # Check if this is an image/screenshot
             is_image = m_type == "image" or any(f_name.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"])
             if is_image and f_url:
-                local_fname = os.path.basename(f_url)
-                local_path = os.path.join(settings.UPLOAD_DIR, local_fname)
-                if os.path.exists(local_path):
-                    analysis = vision_service.analyze_image(local_path)
-                    vision_blocks.append(vision_service.format_vision_context(f_name, analysis))
+                if f_url.startswith("data:image"):
+                    temp_img_path = None
+                    try:
+                        _, b64data = f_url.split(",", 1)
+                        img_bytes = base64.b64decode(b64data)
+                        temp_img_path = os.path.join(tempfile.gettempdir(), f"vision_{uuid.uuid4().hex[:8]}.png")
+                        with open(temp_img_path, "wb") as f_tmp:
+                            f_tmp.write(img_bytes)
+                        analysis = vision_service.analyze_image(temp_img_path)
+                        vision_blocks.append(vision_service.format_vision_context(f_name, analysis))
+                    except Exception:
+                        vision_blocks.append(f"- [IMAGE ATTACHED] {f_name} (Multimodal visual data included)")
+                    finally:
+                        if temp_img_path and os.path.exists(temp_img_path):
+                            try:
+                                os.remove(temp_img_path)
+                            except Exception:
+                                pass
                 else:
-                    vision_blocks.append(f"- [IMAGE] {f_name} (URL: {f_url})")
+                    local_fname = os.path.basename(f_url)
+                    local_path = os.path.join(settings.UPLOAD_DIR, local_fname)
+                    if not os.path.exists(local_path):
+                        local_path = os.path.join(tempfile.gettempdir(), local_fname)
+                    if os.path.exists(local_path):
+                        analysis = vision_service.analyze_image(local_path)
+                        vision_blocks.append(vision_service.format_vision_context(f_name, analysis))
+                    else:
+                        vision_blocks.append(f"- [IMAGE] {f_name} (URL: {f_url})")
             else:
                 vision_blocks.append(f"- [{m_type.upper()}] {f_name} (URL: {f_url})")
 

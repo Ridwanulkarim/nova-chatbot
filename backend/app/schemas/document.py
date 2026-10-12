@@ -17,6 +17,7 @@ class DocumentOut(BaseModel):
     mime_type: str
     chunk_count: int
     url: Optional[str] = None
+    data_url: Optional[str] = None
     media_type: Optional[str] = "document"
     created_at: Any
 

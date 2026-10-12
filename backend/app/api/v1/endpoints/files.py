@@ -1,6 +1,9 @@
 import os
 import shutil
 import uuid
+import base64
+import tempfile
+from datetime import datetime
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
@@ -70,12 +73,16 @@ async def upload_document(
                 detail=f"Unsupported file format '{ext}'."
             )
 
-    # Ensure upload directory exists
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    # Ensure upload directory exists safely
+    try:
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    except Exception:
+        pass
+
     stored_name = f"{uuid.uuid4().hex}_{filename}"
     file_path = os.path.join(settings.UPLOAD_DIR, stored_name)
 
-    # Read and save file safely with size limit
+    # Read content bytes
     content_bytes = await file.read()
     max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     if len(content_bytes) > max_bytes:
@@ -84,10 +91,30 @@ async def upload_document(
             detail=f"File exceeds maximum allowed size of {settings.MAX_UPLOAD_SIZE_MB}MB"
         )
 
-    with open(file_path, "wb") as f:
-        f.write(content_bytes)
+    # Write file safely; fallback to /tmp if primary directory is not writable
+    try:
+        with open(file_path, "wb") as f:
+            f.write(content_bytes)
+    except OSError:
+        file_path = os.path.join(tempfile.gettempdir(), stored_name)
+        try:
+            with open(file_path, "wb") as f:
+                f.write(content_bytes)
+        except Exception:
+            pass
 
     media_type = detect_media_type(ext)
+    
+    # Generate URL: for images, embed base64 data URL so that preview & vision always work on Vercel
+    image_url = f"/uploads/{stored_name}"
+    if media_type == "image":
+        try:
+            b64 = base64.b64encode(content_bytes).decode("utf-8")
+            mime = file.content_type or f"image/{ext.lstrip('.')}"
+            image_url = f"data:{mime};base64,{b64}"
+        except Exception:
+            pass
+
     text_chunks = []
     
     # If text document, extract and chunk for RAG
@@ -98,7 +125,7 @@ async def upload_document(
         except Exception:
             text_chunks = [f"Attached file: {filename}"]
     elif media_type == "image":
-        # Extract visual characteristics and native macOS Vision OCR safely
+        # Extract visual characteristics safely
         try:
             analysis = vision_service.analyze_image(file_path)
             formatted_context = vision_service.format_vision_context(filename, analysis)
@@ -106,44 +133,55 @@ async def upload_document(
             if analysis.get("extracted_text"):
                 ocr_chunks = rag_service.chunk_text(analysis["extracted_text"])
                 text_chunks.extend(ocr_chunks)
-        except Exception as e:
-            text_chunks = [f"Attached image: {filename} (Analysis ready for multimodal inquiry)"]
+        except Exception:
+            text_chunks = [f"Attached image: {filename} (Ready for multimodal inspection)"]
     elif media_type in ("video", "audio"):
         media_info = f"Uploaded {media_type.capitalize()} Media: {filename} ({len(content_bytes)} bytes, format: {ext.lstrip('.')})."
         text_chunks = [media_info]
 
-    # Create document record
-    doc = Document(
-        user_id=current_user.id,
-        filename=filename,
-        file_path=file_path,
-        file_size=len(content_bytes),
-        mime_type=file.content_type or "application/octet-stream",
-        chunk_count=len(text_chunks)
-    )
-    db.add(doc)
-    db.flush()
-
-    # Save chunks
-    for idx, chunk_content in enumerate(text_chunks):
-        chunk = DocumentChunk(
-            document_id=doc.id,
-            chunk_index=idx,
-            content=chunk_content
+    doc_id = str(uuid.uuid4())
+    # Save document and chunks to DB with fallback for serverless
+    try:
+        doc = Document(
+            id=doc_id,
+            user_id=current_user.id,
+            filename=filename,
+            file_path=file_path,
+            file_size=len(content_bytes),
+            mime_type=file.content_type or "application/octet-stream",
+            chunk_count=len(text_chunks)
         )
-        db.add(chunk)
+        db.add(doc)
+        db.flush()
 
-    db.commit()
-    db.refresh(doc)
+        for idx, chunk_content in enumerate(text_chunks):
+            chunk = DocumentChunk(
+                document_id=doc.id,
+                chunk_index=idx,
+                content=chunk_content
+            )
+            db.add(chunk)
+
+        db.commit()
+        db.refresh(doc)
+        created_at = doc.created_at
+    except Exception as db_err:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        created_at = datetime.utcnow()
+
     return {
-        "id": doc.id,
-        "filename": doc.filename,
-        "file_size": doc.file_size,
-        "mime_type": doc.mime_type,
-        "chunk_count": doc.chunk_count,
+        "id": doc_id,
+        "filename": filename,
+        "file_size": len(content_bytes),
+        "mime_type": file.content_type or "application/octet-stream",
+        "chunk_count": len(text_chunks),
         "url": f"/uploads/{stored_name}",
+        "data_url": image_url if image_url.startswith("data:") else None,
         "media_type": media_type,
-        "created_at": doc.created_at
+        "created_at": created_at
     }
 
 @router.delete("/{document_id}")

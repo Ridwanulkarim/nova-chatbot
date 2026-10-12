@@ -1,12 +1,17 @@
 import re
 from typing import Dict, Any, Optional, Tuple
-import sympy as sp
-from sympy.parsing.sympy_parser import (
-    parse_expr,
-    standard_transformations,
-    implicit_multiplication_application,
-    convert_xor,
-)
+try:
+    import sympy as sp
+    from sympy.parsing.sympy_parser import (
+        parse_expr,
+        standard_transformations,
+        implicit_multiplication_application,
+        convert_xor,
+    )
+    HAS_SYMPY = True
+except ImportError:
+    sp = None
+    HAS_SYMPY = False
 
 # Standard mathematical functions and constants permitted in mathematical expressions
 MATH_FUNCS = {
@@ -93,6 +98,8 @@ class MathSolverService:
 
     def is_math_query(self, query: str) -> bool:
         """Determines if query is primarily a mathematical computation, equation, or proof."""
+        if not HAS_SYMPY:
+            return False
         clean = query.lower()
         math_keywords = [
             "solve", "integral", "derivative", "differentiate", "integrate",
@@ -114,6 +121,8 @@ class MathSolverService:
         """
         Attempts symbolic evaluation, factoring, differentiation, or equation solving.
         """
+        if not HAS_SYMPY:
+            return {"success": False, "error": "SymPy is unavailable", "raw_input": expression_str}
         x, y, z, t = sp.symbols('x y z t')
         result = {
             "success": False,

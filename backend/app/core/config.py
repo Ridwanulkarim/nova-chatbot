@@ -26,6 +26,38 @@ def get_env_file():
 ENV_PATH = get_env_file()
 
 
+def is_running_on_vercel() -> bool:
+    return bool(
+        os.environ.get("VERCEL")
+        or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+        or os.environ.get("LAMBDA_TASK_ROOT")
+    )
+
+
+def get_default_upload_dir() -> str:
+    if is_running_on_vercel():
+        return "/tmp/uploads"
+    try:
+        local_dir = "./uploads"
+        os.makedirs(local_dir, exist_ok=True)
+        return local_dir
+    except Exception:
+        return "/tmp/uploads"
+
+
+def get_default_database_url() -> str:
+    if is_running_on_vercel():
+        return "sqlite:////tmp/nova_ai.db"
+    try:
+        test_file = "./.write_test_db"
+        with open(test_file, "w") as f:
+            f.write("1")
+        os.remove(test_file)
+        return "sqlite:///./nova_ai.db"
+    except Exception:
+        return "sqlite:////tmp/nova_ai.db"
+
+
 class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     PORT: int = 8000
@@ -35,7 +67,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "nova_ai_default_secret_key_change_in_production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     
-    DATABASE_URL: str = "sqlite:///./nova_ai.db"
+    DATABASE_URL: str = get_default_database_url()
     
     # AI API Keys
     OPENAI_API_KEY: Optional[str] = None
@@ -47,7 +79,7 @@ class Settings(BaseSettings):
     DEFAULT_PROVIDER: str = "openai"
     
     CORS_ORIGINS: str = "http://localhost:5180,http://127.0.0.1:5180,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
-    UPLOAD_DIR: str = "./uploads"
+    UPLOAD_DIR: str = get_default_upload_dir()
     MAX_UPLOAD_SIZE_MB: int = 50
     DAILY_MESSAGE_LIMIT: int = 50
     DAILY_IMAGE_LIMIT: int = 10

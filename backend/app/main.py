@@ -8,11 +8,17 @@ from app.database.session import engine, Base
 import app.database.base # Register all models with Base
 from app.api.v1.api_router import api_router
 
-# Initialize tables
-Base.metadata.create_all(bind=engine)
+# Initialize tables safely
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Warning: Base.metadata.create_all skipped/deferred: {e}")
 
-# Ensure upload directory exists
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+# Ensure upload directory exists safely
+try:
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+except Exception:
+    pass
 
 app = FastAPI(
     title="Pluto AI API",
@@ -22,7 +28,12 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+# Mount uploads static directory if directory exists
+if os.path.exists(settings.UPLOAD_DIR):
+    try:
+        app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+    except Exception:
+        pass
 
 # CORS Middleware - Permissive for dev, LAN, Vercel, and cloud origins
 app.add_middleware(
@@ -33,8 +44,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount API routes
+# Mount API routes with both /api/v1 and /v1 for seamless reverse proxy / Vercel compatibility
 app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router, prefix="/v1")
 
 # Determine Frontend Dist path
 FRONTEND_DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../frontend/dist"))
