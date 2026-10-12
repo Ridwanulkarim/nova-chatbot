@@ -1,5 +1,5 @@
 const API_HOST = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0')
-  ? (window.location.port === '5180' ? '' : 'http://localhost:8000')
+  ? 'http://localhost:8000'
   : '');
 
 export const API_BASE = `${API_HOST}/api/v1`;

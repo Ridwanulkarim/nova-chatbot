@@ -30,7 +30,7 @@ export function ChatComposer({ onOpenDocModal, theme }) {
   const { isListening, startListening, stopListening, hasSpeechRecognition, language, setLanguage } = useVoiceAssistant();
 
   const API_HOST = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0')
-    ? (window.location.port === '5180' ? '' : 'http://localhost:8000')
+    ? 'http://localhost:8000'
     : '';
 
   // Auto-resize textarea
