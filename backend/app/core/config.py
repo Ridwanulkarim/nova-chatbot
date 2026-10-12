@@ -75,8 +75,8 @@ class Settings(BaseSettings):
     GROQ_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
     
-    DEFAULT_MODEL: str = "gpt-4o-mini"
-    DEFAULT_PROVIDER: str = "openai"
+    DEFAULT_MODEL: str = "openai/gpt-oss-120b"
+    DEFAULT_PROVIDER: str = "groq"
     
     CORS_ORIGINS: str = "http://localhost:5180,http://127.0.0.1:5180,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
     UPLOAD_DIR: str = get_default_upload_dir()
