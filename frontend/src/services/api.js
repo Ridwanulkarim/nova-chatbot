@@ -207,37 +207,13 @@ export const api = {
     const isImg = file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext);
 
     // Parallel Client OCR for images
-    const clientOcrPromise = isImg && localDataUrl ? (async () => {
+    const clientOcrPromise = isImg ? (async () => {
       try {
-        const img = new window.Image();
-        const loaded = await new Promise((res) => {
-          img.onload = () => res(true);
-          img.onerror = () => res(false);
-          img.src = localDataUrl;
-        });
-        if (!loaded) return '';
-
-        const maxDim = 1200;
-        let w = img.width;
-        let h = img.height;
-        if (Math.max(w, h) > maxDim) {
-          const scale = maxDim / Math.max(w, h);
-          w = Math.round(w * scale);
-          h = Math.round(h * scale);
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-
         const keys = ['K82367761188957', 'K88726598588957', 'K86522521188957', 'helloworld'];
         for (const k of keys) {
           try {
             const formData = new FormData();
-            formData.append('base64Image', jpegDataUrl);
+            formData.append('file', file, file.name || 'image.png');
             formData.append('apikey', k);
             formData.append('language', 'eng');
             formData.append('OCREngine', '2');

@@ -87,31 +87,24 @@ class VisionService:
                 import urllib.request
                 import json
 
-                # If Pillow is available, compress to optimized JPEG to stay well under cloud OCR payload limits (< 1MB)
-                raw_b64 = None
-                img_fmt = "jpeg"
+                # Read and optimize image bytes for OCR
+                img_bytes = None
+                mime_type = "image/jpeg"
                 if Image:
                     try:
                         with Image.open(file_path) as im:
-                            buf = io.BytesIO()
                             rgb_im = im.convert("RGB")
-                            # Resize if oversized (max dimension 1200px for blazing-fast 2s OCR)
-                            max_dim = max(rgb_im.size)
-                            if max_dim > 1200:
-                                scale = 1200.0 / max_dim
-                                new_size = (int(rgb_im.size[0] * scale), int(rgb_im.size[1] * scale))
-                                rgb_im = rgb_im.resize(new_size, Image.Resampling.LANCZOS)
+                            rgb_im.thumbnail((1200, 1200))
+                            buf = io.BytesIO()
                             rgb_im.save(buf, format="JPEG", quality=80, optimize=True)
-                            raw_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+                            img_bytes = buf.getvalue()
                     except Exception:
-                        raw_b64 = None
+                        img_bytes = None
 
-                if not raw_b64:
+                if not img_bytes:
                     with open(file_path, "rb") as f_img:
-                        raw_b64 = base64.b64encode(f_img.read()).decode("utf-8")
-                    img_fmt = result.get("format", "png").lower()
-                    if img_fmt not in ["jpeg", "jpg", "png", "webp", "gif"]:
-                        img_fmt = "png"
+                        img_bytes = f_img.read()
+                    mime_type = "image/png" if file_path.lower().endswith(".png") else "image/jpeg"
 
                 api_keys = [
                     os.environ.get("OCR_SPACE_API_KEY", "").strip(),
@@ -124,21 +117,34 @@ class VisionService:
 
                 for key in api_keys:
                     try:
-                        data = urllib.parse.urlencode({
-                            "base64Image": f"data:image/jpeg;base64,{raw_b64}",
-                            "apikey": key,
-                            "language": "eng",
-                            "OCREngine": "2",
-                            "detectOrientation": "true",
-                            "scale": "true"
-                        }).encode("utf-8")
+                        import uuid
+                        boundary = f"----WebKitFormBoundary{uuid.uuid4().hex}"
+                        body_parts = []
+                        for param_k, param_v in [
+                            ("apikey", key),
+                            ("language", "eng"),
+                            ("OCREngine", "2"),
+                            ("detectOrientation", "true"),
+                            ("scale", "true")
+                        ]:
+                            body_parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{param_k}\"\r\n\r\n{param_v}\r\n".encode("utf-8"))
+
+                        body_parts.append(
+                            f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"document.jpg\"\r\nContent-Type: {mime_type}\r\n\r\n".encode("utf-8")
+                        )
+                        body_parts.append(img_bytes)
+                        body_parts.append(f"\r\n--{boundary}--\r\n".encode("utf-8"))
+                        post_data = b"".join(body_parts)
 
                         req = urllib.request.Request(
                             "https://api.ocr.space/parse/image",
-                            data=data,
-                            headers={"User-Agent": "PlutoAI/1.0"}
+                            data=post_data,
+                            headers={
+                                "Content-Type": f"multipart/form-data; boundary={boundary}",
+                                "User-Agent": "PlutoAI/1.0"
+                            }
                         )
-                        with urllib.request.urlopen(req, timeout=8) as resp:
+                        with urllib.request.urlopen(req, timeout=10) as resp:
                             resp_data = json.loads(resp.read().decode("utf-8"))
                             parsed_results = resp_data.get("ParsedResults", [])
                             if parsed_results:
@@ -162,12 +168,22 @@ class VisionService:
                     except Exception:
                         pass
                 if gemini_key:
-                    # Prepare image bytes if raw_b64 wasn't generated
+                    raw_b64 = None
+                    try:
+                        if Image:
+                            with Image.open(file_path) as im_g:
+                                rgb_g = im_g.convert("RGB")
+                                rgb_g.thumbnail((1000, 1000))
+                                buf_g = io.BytesIO()
+                                rgb_g.save(buf_g, format="JPEG", quality=75)
+                                raw_b64 = base64.b64encode(buf_g.getvalue()).decode("utf-8")
+                    except Exception:
+                        raw_b64 = None
+
                     if not raw_b64:
-                        import base64
                         with open(file_path, "rb") as f_img:
                             raw_b64 = base64.b64encode(f_img.read()).decode("utf-8")
-                    
+
                     import urllib.request
                     import json
                     for gem_model in ["gemini-3.5-flash", "gemini-2.5-flash"]:
