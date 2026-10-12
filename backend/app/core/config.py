@@ -8,14 +8,19 @@ PROJECT_ROOT = BASE_DIR.parent if BASE_DIR.name == "backend" else BASE_DIR
 
 def get_env_file():
     candidates = [
-        PROJECT_ROOT / "nova_ai.env",
-        BASE_DIR / "nova_ai.env",
         PROJECT_ROOT / ".env",
-        BASE_DIR / ".env"
+        BASE_DIR / ".env",
+        PROJECT_ROOT / "nova_ai.env",
+        BASE_DIR / "nova_ai.env"
     ]
     for p in candidates:
-        if p.exists():
-            return str(p)
+        try:
+            if p.exists() and os.access(str(p), os.R_OK):
+                with open(str(p), "r") as f:
+                    f.read(1)
+                return str(p)
+        except Exception:
+            continue
     return str(PROJECT_ROOT / ".env")
 
 ENV_PATH = get_env_file()
