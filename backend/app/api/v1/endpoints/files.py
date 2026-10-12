@@ -181,6 +181,7 @@ async def upload_document(
         "url": f"/uploads/{stored_name}",
         "data_url": image_url if image_url.startswith("data:") else None,
         "media_type": media_type,
+        "extracted_text": analysis.get("extracted_text", "") if (media_type == "image" and "analysis" in locals()) else None,
         "created_at": created_at
     }
 

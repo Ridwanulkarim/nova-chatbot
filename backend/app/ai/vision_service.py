@@ -1,9 +1,11 @@
-import os
+import hashlib
 from typing import Dict, Any, Optional
 try:
     from PIL import Image
 except ImportError:
     Image = None
+
+_IMAGE_CACHE: Dict[str, Dict[str, Any]] = {}
 
 class VisionService:
     """
@@ -20,6 +22,16 @@ class VisionService:
                 "extracted_text": "",
                 "description": ""
             }
+
+        # Check in-memory cache to avoid redundant OCR calls
+        file_hash = None
+        try:
+            with open(file_path, "rb") as f_hash:
+                file_hash = hashlib.md5(f_hash.read()).hexdigest()
+            if file_hash in _IMAGE_CACHE:
+                return dict(_IMAGE_CACHE[file_hash])
+        except Exception:
+            pass
 
         result = {
             "success": True,
@@ -115,7 +127,7 @@ class VisionService:
                     data=data,
                     headers={"User-Agent": "PlutoAI/1.0"}
                 )
-                with urllib.request.urlopen(req, timeout=25) as resp:
+                with urllib.request.urlopen(req, timeout=12) as resp:
                     resp_data = json.loads(resp.read().decode("utf-8"))
                     parsed_results = resp_data.get("ParsedResults", [])
                     if parsed_results:
@@ -135,6 +147,9 @@ class VisionService:
         else:
             desc_parts.append("visual content analyzed")
         result["description"] = " ".join(desc_parts)
+
+        if file_hash:
+            _IMAGE_CACHE[file_hash] = dict(result)
 
         return result
 

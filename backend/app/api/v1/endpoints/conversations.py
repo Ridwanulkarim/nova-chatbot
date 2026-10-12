@@ -59,6 +59,15 @@ def get_conversation(
     existing_any = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if existing_any:
         if existing_any.user_id != current_user.id:
+            conv_owner = db.query(User).filter(User.id == existing_any.user_id).first()
+            if (
+                existing_any.user_id == "guest-default-user"
+                or current_user.id == "guest-default-user"
+                or (conv_owner and conv_owner.email == current_user.email)
+            ):
+                existing_any.user_id = current_user.id
+                db.commit()
+                return existing_any
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Conversation not found"
@@ -87,10 +96,19 @@ def update_conversation(
     existing_any = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if existing_any:
         if existing_any.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Conversation not found"
-            )
+            conv_owner = db.query(User).filter(User.id == existing_any.user_id).first()
+            if (
+                existing_any.user_id == "guest-default-user"
+                or current_user.id == "guest-default-user"
+                or (conv_owner and conv_owner.email == current_user.email)
+            ):
+                existing_any.user_id = current_user.id
+                db.commit()
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Conversation not found"
+                )
         conv = existing_any
     else:
         conv = Conversation(

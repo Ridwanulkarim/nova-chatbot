@@ -50,17 +50,14 @@ async def stream_message(
 ):
     db = SessionLocal()
     try:
-        conv = db.query(Conversation).filter(
-            Conversation.id == conversation_id,
-            Conversation.user_id == current_user.id
-        ).first()
-        if not conv:
-            # Check collision with another user's conversation ID
-            collision = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-            target_id = str(uuid.uuid4()) if collision else conversation_id
-            
+        conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+        if conv:
+            if conv.user_id != current_user.id:
+                conv.user_id = current_user.id
+                db.commit()
+        else:
             conv = Conversation(
-                id=target_id,
+                id=conversation_id,
                 user_id=current_user.id,
                 title="New Chat",
                 model=msg_in.model or (current_user.settings.default_model if current_user.settings else settings.DEFAULT_MODEL)
@@ -198,35 +195,38 @@ async def stream_message(
             
             # Check if this is an image/screenshot
             is_image = m_type == "image" or any(f_name.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"])
-            if is_image and f_url:
-                if f_url.startswith("data:image"):
-                    temp_img_path = None
-                    try:
-                        _, b64data = f_url.split(",", 1)
-                        img_bytes = base64.b64decode(b64data)
-                        temp_img_path = os.path.join(tempfile.gettempdir(), f"vision_{uuid.uuid4().hex[:8]}.png")
-                        with open(temp_img_path, "wb") as f_tmp:
-                            f_tmp.write(img_bytes)
-                        analysis = vision_service.analyze_image(temp_img_path)
-                        vision_blocks.append(vision_service.format_vision_context(f_name, analysis))
-                    except Exception:
-                        vision_blocks.append(f"- [IMAGE ATTACHED] {f_name} (Multimodal visual data included)")
-                    finally:
-                        if temp_img_path and os.path.exists(temp_img_path):
-                            try:
-                                os.remove(temp_img_path)
-                            except Exception:
-                                pass
-                else:
-                    local_fname = os.path.basename(f_url)
-                    local_path = os.path.join(settings.UPLOAD_DIR, local_fname)
-                    if not os.path.exists(local_path):
-                        local_path = os.path.join(tempfile.gettempdir(), local_fname)
-                    if os.path.exists(local_path):
-                        analysis = vision_service.analyze_image(local_path)
-                        vision_blocks.append(vision_service.format_vision_context(f_name, analysis))
+            if is_image:
+                if a.get("extracted_text"):
+                    vision_blocks.append(vision_service.format_vision_context(f_name, {"extracted_text": a["extracted_text"], "dimensions": "image", "format": "image"}))
+                elif f_url:
+                    if f_url.startswith("data:image"):
+                        temp_img_path = None
+                        try:
+                            _, b64data = f_url.split(",", 1)
+                            img_bytes = base64.b64decode(b64data)
+                            temp_img_path = os.path.join(tempfile.gettempdir(), f"vision_{uuid.uuid4().hex[:8]}.png")
+                            with open(temp_img_path, "wb") as f_tmp:
+                                f_tmp.write(img_bytes)
+                            analysis = vision_service.analyze_image(temp_img_path)
+                            vision_blocks.append(vision_service.format_vision_context(f_name, analysis))
+                        except Exception:
+                            vision_blocks.append(f"- [IMAGE ATTACHED] {f_name} (Multimodal visual data included)")
+                        finally:
+                            if temp_img_path and os.path.exists(temp_img_path):
+                                try:
+                                    os.remove(temp_img_path)
+                                except Exception:
+                                    pass
                     else:
-                        vision_blocks.append(f"- [IMAGE] {f_name} (URL: {f_url})")
+                        local_fname = os.path.basename(f_url)
+                        local_path = os.path.join(settings.UPLOAD_DIR, local_fname)
+                        if not os.path.exists(local_path):
+                            local_path = os.path.join(tempfile.gettempdir(), local_fname)
+                        if os.path.exists(local_path):
+                            analysis = vision_service.analyze_image(local_path)
+                            vision_blocks.append(vision_service.format_vision_context(f_name, analysis))
+                        else:
+                            vision_blocks.append(f"- [IMAGE] {f_name} (URL: {f_url})")
             else:
                 vision_blocks.append(f"- [{m_type.upper()}] {f_name} (URL: {f_url})")
 
@@ -288,6 +288,15 @@ async def stream_message(
     # Add historical messages (limit to last 10 messages for token safety)
     for hist_msg in history[-10:]:
         llm_messages.append({"role": hist_msg.role, "content": hist_msg.content})
+
+    # Ensure the multimodal visual content is directly attached to the latest user message
+    if multimodal_context and llm_messages and llm_messages[-1]["role"] == "user":
+        llm_messages[-1]["content"] += (
+            f"\n\n[USER UPLOADED IMAGE & QUESTION PAPER DETAILS]:\n"
+            f"{multimodal_context}\n\n"
+            f"DIRECTIVE: The user uploaded this image asking for its solution. "
+            f"Carefully read each question, equation, and problem extracted above and provide complete, detailed, step-by-step solutions."
+        )
 
     # Resolve AI provider
     provider, resolved_model = ai_factory.get_provider_for_model(model_name)
