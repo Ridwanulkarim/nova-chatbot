@@ -137,114 +137,132 @@ export function ChatArea({
 
         {/* Top Controls */}
         <div className="flex items-center gap-2">
-          {/* Daily Quota Indicator Pill */}
-          {dailyQuota && (
-            <div className="relative">
-              <button
-                onClick={() => setShowQuotaTooltip((v) => !v)}
-                onMouseEnter={() => setShowQuotaTooltip(true)}
-                onMouseLeave={() => setShowQuotaTooltip(false)}
-                className={`hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                  dailyQuota.remaining_messages <= 5 || dailyQuota.remaining_images <= 2
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
-                    : theme === 'lavender-glow'
-                    ? 'bg-white border-purple-200 text-slate-800 hover:border-purple-300 shadow-xs'
-                    : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
-                }`}
-              >
-                <Zap size={13} className="text-amber-500 fill-amber-500/20" />
-                <span>
-                  {dailyQuota.remaining_messages}/{dailyQuota.message_limit} msgs
-                </span>
-                <span className={theme === 'lavender-glow' ? 'text-purple-300' : 'text-slate-600'}>|</span>
-                <span className={`flex items-center gap-1 text-[11px] ${
-                  theme === 'lavender-glow' ? 'text-purple-700 font-medium' : 'text-indigo-300'
-                }`}>
-                  <ImageIcon size={12} />
-                  {dailyQuota.remaining_images}/{dailyQuota.image_limit}
-                </span>
-              </button>
-
-              {/* Quota Popover Dropdown */}
-              {showQuotaTooltip && (
-                <div className={`absolute right-0 top-full mt-2 w-64 p-3 rounded-xl shadow-2xl backdrop-blur-xl z-50 text-xs border ${
-                  theme === 'lavender-glow'
-                    ? 'bg-white/95 border-purple-200 text-slate-800 shadow-purple-950/10'
-                    : 'bg-slate-900/95 border-slate-700 text-slate-200'
-                }`}>
-                  <div className={`flex items-center justify-between pb-2 mb-2 border-b ${
-                    theme === 'lavender-glow' ? 'border-purple-100' : 'border-slate-800'
+          {/* Daily Quota Indicator Pill (Always visible) */}
+          {(() => {
+            const quota = dailyQuota || {
+              message_count: 0,
+              message_limit: 50,
+              remaining_messages: 50,
+              image_count: 0,
+              image_limit: 10,
+              remaining_images: 10,
+              resets_in_hours: 24,
+            };
+            return (
+              <div className="relative">
+                <button
+                  onClick={() => setShowQuotaTooltip((v) => !v)}
+                  onMouseEnter={() => setShowQuotaTooltip(true)}
+                  onMouseLeave={() => setShowQuotaTooltip(false)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    quota.remaining_messages <= 5 || quota.remaining_images <= 2
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
+                      : theme === 'lavender-glow'
+                      ? 'bg-white/90 border-purple-200 hover:border-purple-300 text-slate-800 shadow-xs'
+                      : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:border-slate-700'
+                  }`}
+                  title="Daily quota: messages and AI images"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Zap size={13} className="text-amber-500 fill-amber-500/20" />
+                    <span>
+                      {quota.remaining_messages}/{quota.message_limit} msgs
+                    </span>
+                  </div>
+                  <span className={theme === 'lavender-glow' ? 'text-purple-300' : 'text-slate-600'}>|</span>
+                  <div className={`flex items-center gap-1.5 font-semibold ${
+                    theme === 'lavender-glow' ? 'text-purple-700' : 'text-indigo-300'
                   }`}>
-                    <span className={`font-semibold ${theme === 'lavender-glow' ? 'text-slate-900' : 'text-white'}`}>
-                      Daily Usage Limits
-                    </span>
-                    <span className={`text-[10px] ${theme === 'lavender-glow' ? 'text-slate-500' : 'text-slate-400'}`}>
-                      Resets in ~{dailyQuota.resets_in_hours}h
-                    </span>
+                    <ImageIcon size={13} className={theme === 'lavender-glow' ? 'text-purple-600' : 'text-indigo-400'} />
+                    <span>{quota.remaining_images}/{quota.image_limit} AI Images</span>
                   </div>
-                  <div className="space-y-2.5">
-                    <div>
-                      <div className={`flex justify-between text-[11px] mb-1 ${theme === 'lavender-glow' ? 'text-slate-600' : 'text-slate-300'}`}>
-                        <span>Messages</span>
-                        <span className={`font-mono font-medium ${theme === 'lavender-glow' ? 'text-slate-900' : 'text-white'}`}>
-                          {dailyQuota.message_count} / {dailyQuota.message_limit}
-                        </span>
+                </button>
+
+                {/* Quota Popover Dropdown */}
+                {showQuotaTooltip && (
+                  <div className={`absolute right-0 top-full mt-2 w-72 p-3.5 rounded-2xl shadow-2xl backdrop-blur-xl z-50 text-xs border ${
+                    theme === 'lavender-glow'
+                      ? 'bg-white/95 border-purple-200 text-slate-800 shadow-purple-950/10'
+                      : 'bg-slate-900/95 border-slate-700 text-slate-200'
+                  }`}>
+                    <div className={`flex items-center justify-between pb-2 mb-2.5 border-b ${
+                      theme === 'lavender-glow' ? 'border-purple-100' : 'border-slate-800'
+                    }`}>
+                      <span className={`font-semibold ${theme === 'lavender-glow' ? 'text-slate-900' : 'text-white'}`}>
+                        Daily Usage Limits
+                      </span>
+                      <span className={`text-[10px] ${theme === 'lavender-glow' ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Resets in ~{quota.resets_in_hours}h
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <div className={`flex justify-between text-[11px] mb-1.5 ${theme === 'lavender-glow' ? 'text-slate-600' : 'text-slate-300'}`}>
+                          <span className="flex items-center gap-1"><Zap size={12} className="text-amber-500" /> Messages</span>
+                          <span className={`font-mono font-medium ${theme === 'lavender-glow' ? 'text-slate-900' : 'text-white'}`}>
+                            {quota.message_count} / {quota.message_limit}
+                          </span>
+                        </div>
+                        <div className={`w-full h-1.5 rounded-full overflow-hidden ${theme === 'lavender-glow' ? 'bg-purple-100' : 'bg-slate-800'}`}>
+                          <div
+                            className="bg-brand-500 h-full rounded-full transition-all"
+                            style={{
+                              width: `${Math.min(100, (quota.message_count / quota.message_limit) * 100)}%`,
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div className={`w-full h-1.5 rounded-full overflow-hidden ${theme === 'lavender-glow' ? 'bg-purple-100' : 'bg-slate-800'}`}>
-                        <div
-                          className="bg-brand-500 h-full rounded-full transition-all"
-                          style={{
-                            width: `${Math.min(100, (dailyQuota.message_count / dailyQuota.message_limit) * 100)}%`,
-                          }}
-                        />
+
+                      <div>
+                        <div className={`flex justify-between text-[11px] mb-1.5 ${theme === 'lavender-glow' ? 'text-slate-600' : 'text-slate-300'}`}>
+                          <span className="flex items-center gap-1"><ImageIcon size={12} className="text-purple-500" /> AI Images</span>
+                          <span className={`font-mono font-medium ${theme === 'lavender-glow' ? 'text-slate-900' : 'text-white'}`}>
+                            {quota.image_count} / {quota.image_limit}
+                          </span>
+                        </div>
+                        <div className={`w-full h-1.5 rounded-full overflow-hidden ${theme === 'lavender-glow' ? 'bg-purple-100' : 'bg-slate-800'}`}>
+                          <div
+                            className="bg-purple-500 h-full rounded-full transition-all"
+                            style={{
+                              width: `${Math.min(100, (quota.image_count / quota.image_limit) * 100)}%`,
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
-
-                    <div>
-                      <div className={`flex justify-between text-[11px] mb-1 ${theme === 'lavender-glow' ? 'text-slate-600' : 'text-slate-300'}`}>
-                        <span>AI Images</span>
-                        <span className={`font-mono font-medium ${theme === 'lavender-glow' ? 'text-slate-900' : 'text-white'}`}>
-                          {dailyQuota.image_count} / {dailyQuota.image_limit}
-                        </span>
-                      </div>
-                      <div className={`w-full h-1.5 rounded-full overflow-hidden ${theme === 'lavender-glow' ? 'bg-purple-100' : 'bg-slate-800'}`}>
-                        <div
-                          className="bg-indigo-500 h-full rounded-full transition-all"
-                          style={{
-                            width: `${Math.min(100, (dailyQuota.image_count / dailyQuota.image_limit) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
+                    <p className={`mt-3 text-[10px] leading-tight ${theme === 'lavender-glow' ? 'text-slate-500' : 'text-slate-400'}`}>
+                      Free quota renews daily at midnight UTC.
+                    </p>
                   </div>
-                  <p className={`mt-3 text-[10px] leading-tight ${theme === 'lavender-glow' ? 'text-slate-500' : 'text-slate-400'}`}>
-                    Free quota renews daily at midnight UTC.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })()}
 
-          {/* Model Selector */}
+          {/* Model Selector (Always populated, never blank) */}
           <div className="hidden sm:block">
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className={`text-xs rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer border ${
+              className={`text-xs rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer border font-medium transition-all ${
                 theme === 'lavender-glow'
-                  ? 'bg-white border-purple-200 text-slate-800 focus:border-purple-500 shadow-xs'
-                  : 'bg-slate-900 border-slate-700 text-slate-200 focus:border-brand-500'
+                  ? 'bg-white border-purple-200 text-slate-800 hover:border-purple-300 focus:border-purple-500 shadow-xs'
+                  : 'bg-slate-900 border-slate-700 text-slate-200 hover:border-slate-600 focus:border-brand-500'
               }`}
             >
-              {availableModels.map((m) => (
-                <option key={m.id} value={m.id}>
+              {(availableModels && availableModels.length > 0 ? availableModels : [
+                { id: 'openai/gpt-oss-120b', name: 'GPT-OSS 120B (Groq)' },
+                { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B (Groq)' },
+                { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B (Groq)' },
+              ]).map((m) => (
+                <option key={m.id} value={m.id} className="text-slate-900 bg-white">
                   {m.name}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Upgrade Button matching top-right of homepage screenshot */}
+          {/* Upgrade Button */}
           <button
             onClick={() => setShowQuotaTooltip((v) => !v)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-xs border ${

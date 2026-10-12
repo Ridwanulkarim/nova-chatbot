@@ -5,6 +5,22 @@ import { useAuth } from './AuthContext';
 
 const ChatContext = createContext(null);
 
+export const DEFAULT_QUOTA = {
+  message_count: 0,
+  message_limit: 50,
+  remaining_messages: 50,
+  image_count: 0,
+  image_limit: 10,
+  remaining_images: 10,
+  resets_in_hours: 24,
+};
+
+export const DEFAULT_MODELS = [
+  { id: 'openai/gpt-oss-120b', name: 'GPT-OSS 120B (Groq)' },
+  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B (Groq)' },
+  { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B (Groq)' },
+];
+
 export function ChatProvider({ children }) {
   const { isAuthenticated, loading: authLoading, setIsAuthModalOpen } = useAuth();
   const [conversations, setConversations] = useState([]);
@@ -25,13 +41,56 @@ export function ChatProvider({ children }) {
     }
   });
   const [isStreaming, setIsStreaming] = useState(false);
-  const [availableModels, setAvailableModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
+  const [availableModels, setAvailableModels] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pluto_available_models');
+      return saved ? JSON.parse(saved) : DEFAULT_MODELS;
+    } catch (e) {
+      return DEFAULT_MODELS;
+    }
+  });
+  const [selectedModel, setSelectedModel] = useState(() => {
+    return localStorage.getItem('pluto_selected_model') || 'openai/gpt-oss-120b';
+  });
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [errorMessage, setErrorMessage] = useState(null);
-  const [dailyQuota, setDailyQuota] = useState(null);
+  const [dailyQuota, setDailyQuota] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pluto_daily_quota');
+      return saved ? JSON.parse(saved) : DEFAULT_QUOTA;
+    } catch (e) {
+      return DEFAULT_QUOTA;
+    }
+  });
+
+  // Persist selectedModel
+  useEffect(() => {
+    if (selectedModel) {
+      try {
+        localStorage.setItem('pluto_selected_model', selectedModel);
+      } catch (e) {}
+    }
+  }, [selectedModel]);
+
+  // Persist dailyQuota
+  useEffect(() => {
+    if (dailyQuota) {
+      try {
+        localStorage.setItem('pluto_daily_quota', JSON.stringify(dailyQuota));
+      } catch (e) {}
+    }
+  }, [dailyQuota]);
+
+  // Persist availableModels
+  useEffect(() => {
+    if (availableModels && availableModels.length > 0) {
+      try {
+        localStorage.setItem('pluto_available_models', JSON.stringify(availableModels));
+      } catch (e) {}
+    }
+  }, [availableModels]);
 
   // Sync activeConversation to localStorage
   useEffect(() => {
@@ -58,7 +117,6 @@ export function ChatProvider({ children }) {
   }, [messages, activeConversation]);
 
   const fetchQuota = async () => {
-    if (!isAuthenticated) return;
     try {
       const q = await api.getQuota();
       if (q) setDailyQuota(q);
@@ -76,9 +134,9 @@ export function ChatProvider({ children }) {
     const fetchModels = async () => {
       try {
         const models = await api.getAvailableModels();
-        setAvailableModels(models);
-        if (models.length > 0) {
-          setSelectedModel(models[0].id);
+        if (models && models.length > 0) {
+          setAvailableModels(models);
+          setSelectedModel((prev) => (models.some((m) => m.id === prev) ? prev : models[0].id));
         }
       } catch (err) {
         console.warn('Could not load models list:', err);
