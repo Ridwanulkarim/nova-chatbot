@@ -328,9 +328,10 @@ export function ChatProvider({ children }) {
 
     setErrorMessage(null);
 
-    // If no active conversation, create one first
+    // If no active conversation or if current conversation was corrupted/errored, create a fresh one
     let currentConv = activeConversation;
-    if (!currentConv) {
+    const hasConvError = messages.some((m) => m.content && m.content.toLowerCase().includes('conversation not found'));
+    if (!currentConv || hasConvError) {
       currentConv = await createNewChat();
       if (!currentConv) return;
     }

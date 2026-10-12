@@ -53,19 +53,17 @@ async def stream_message(
 ):
     db = SessionLocal()
     try:
-        existing_any = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-        if existing_any:
-            if existing_any.user_id != current_user.id:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Conversation not found"
-                )
-            conv = existing_any
-        else:
-            # Auto-heal: If conversation does not exist at all (e.g. serverless cold start / fresh database / recycled instance),
-            # recreate it on the fly so the user NEVER encounters "Conversation not found"!
+        conv = db.query(Conversation).filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id
+        ).first()
+        if not conv:
+            # Check collision with another user's conversation ID
+            collision = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+            target_id = str(uuid.uuid4()) if collision else conversation_id
+            
             conv = Conversation(
-                id=conversation_id,
+                id=target_id,
                 user_id=current_user.id,
                 title="New Chat",
                 model=msg_in.model or (current_user.settings.default_model if current_user.settings else settings.DEFAULT_MODEL)
