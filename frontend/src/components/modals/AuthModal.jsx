@@ -17,6 +17,12 @@ export function AuthModal({ theme }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    if (isRegister && password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -26,7 +32,8 @@ export function AuthModal({ theme }) {
         await login(email, password);
       }
     } catch (err) {
-      setError(err.message || 'Authentication failed');
+      const msg = typeof err?.message === 'string' ? err.message : 'Authentication failed';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -137,21 +144,39 @@ export function AuthModal({ theme }) {
           </div>
 
           <div>
-            <label className={`block text-xs font-medium mb-1.5 ${
-              isLight ? 'text-slate-700' : 'text-slate-300'
-            }`}>
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className={`block text-xs font-medium ${
+                isLight ? 'text-slate-700' : 'text-slate-300'
+              }`}>
+                Password
+              </label>
+              {isRegister && (
+                <span className={`text-[10px] ${
+                  password.length > 0 && password.length < 6
+                    ? 'text-rose-500 font-semibold'
+                    : isLight
+                    ? 'text-slate-500'
+                    : 'text-slate-400'
+                }`}>
+                  Min. 6 characters ({password.length}/6)
+                </span>
+              )}
+            </div>
             <input
               type="password"
               required
+              minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className={`w-full rounded-xl p-3 text-xs focus:outline-none border ${
+              placeholder="At least 6 characters"
+              className={`w-full rounded-xl p-3 text-xs focus:outline-none border transition-all ${
                 isLight
                   ? 'bg-purple-50/60 border-purple-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-purple-400'
                   : 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-400 focus:border-brand-500'
+              } ${
+                isRegister && password.length > 0 && password.length < 6
+                  ? 'border-rose-400/80 focus:border-rose-400 ring-1 ring-rose-400/30'
+                  : ''
               }`}
             />
           </div>

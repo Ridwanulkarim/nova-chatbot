@@ -37,6 +37,23 @@ export const setAuthToken = (token) => {
   }
 };
 
+export const extractErrorMessage = (err, fallback = 'Operation failed') => {
+  if (!err) return fallback;
+  if (typeof err === 'string') return err;
+  if (typeof err.detail === 'string') return err.detail;
+  if (Array.isArray(err.detail)) {
+    const msgs = err.detail.map((item) => {
+      if (typeof item === 'string') return item;
+      const field = item.loc && item.loc.length > 0 ? item.loc[item.loc.length - 1] : '';
+      const msg = item.msg || JSON.stringify(item);
+      return field && field !== 'body' ? `${field}: ${msg}` : msg;
+    });
+    return msgs.filter(Boolean).join('. ') || fallback;
+  }
+  if (typeof err.message === 'string') return err.message;
+  return fallback;
+};
+
 const getHeaders = (extra = {}) => {
   const headers = { ...extra };
   const token = getAuthToken();
@@ -56,7 +73,7 @@ export const api = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Registration failed');
+      throw new Error(extractErrorMessage(err, 'Registration failed'));
     }
     return res.json();
   },
@@ -69,7 +86,7 @@ export const api = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Invalid email or password');
+      throw new Error(extractErrorMessage(err, 'Invalid email or password'));
     }
     return res.json();
   },
