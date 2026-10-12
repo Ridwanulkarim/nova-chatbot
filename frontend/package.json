@@ -2,6 +2,7 @@
   "name": "pluto-ai-frontend",
   "private": true,
   "version": "1.0.0",
+  "homepage": "https://pluto-chatbot-it29af1oe-ridwanulkarims-projects.vercel.app/",
   "type": "module",
   "scripts": {
     "dev": "vite",

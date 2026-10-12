@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     DEFAULT_MODEL: str = "openai/gpt-oss-120b"
     DEFAULT_PROVIDER: str = "groq"
     
-    CORS_ORIGINS: str = "http://localhost:5180,http://127.0.0.1:5180,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:5180,http://127.0.0.1:5180,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,https://pluto-chatbot-it29af1oe-ridwanulkarims-projects.vercel.app,https://pluto-chatbot.vercel.app"
     UPLOAD_DIR: str = get_default_upload_dir()
     MAX_UPLOAD_SIZE_MB: int = 50
     DAILY_MESSAGE_LIMIT: int = 50
