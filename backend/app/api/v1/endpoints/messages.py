@@ -355,6 +355,22 @@ async def stream_message(
     # Resolve AI provider: Auto-route to a genuine vision-capable provider if images are present
     if attached_images:
         provider, resolved_model = ai_factory.get_vision_capable_provider(model_name)
+        has_vision = False
+        if provider and hasattr(provider, "list_supported_models"):
+            for m in provider.list_supported_models():
+                if m["id"] == resolved_model and m.get("supports_vision"):
+                    has_vision = True
+                    break
+        if not has_vision:
+            err_msg = (
+                "⚠️ **Vision Model Required**: Processing uploaded images requires a multimodal vision model "
+                "(such as Google Gemini 3.5 Flash or OpenAI GPT-4o). "
+                "Please configure `GEMINI_API_KEY` in your server/Vercel environment settings to enable image understanding."
+            )
+            async def err_gen():
+                yield f"data: {json.dumps({'token': err_msg})}\n\n"
+                yield f"data: {json.dumps({'done': True, 'error': err_msg})}\n\n"
+            return StreamingResponse(err_gen(), media_type="text/event-stream")
     else:
         provider, resolved_model = ai_factory.get_provider_for_model(model_name)
 
