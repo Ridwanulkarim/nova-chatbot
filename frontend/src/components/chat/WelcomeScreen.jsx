@@ -138,15 +138,21 @@ export function WelcomeScreen({
     if ((!textToSend && attachedFiles.length === 0) || isStreaming || uploadingFile) return;
 
     let finalPrompt = textToSend;
-    const isShortExamPrompt = ['answer', 'anser', 'ans', 'solve', 'solve this', 'solve these', 'solve these questions', 'solution', 'উত্তর', 'সমাধান'].includes(finalPrompt.toLowerCase());
-    if (attachedFiles.length > 0 && isShortExamPrompt) {
-      finalPrompt = "Please solve all questions, mathematical problems, and exercises in the attached image/question paper in complete detail step-by-step.";
+    const lower = finalPrompt.toLowerCase();
+    const isSolveIntent =
+      !finalPrompt ||
+      ['answer', 'anser', 'ans', 'solve', 'solution', 'ques', 'question', 'উত্তর', 'সমাধান', 'প্রশ্ন', 'exam', 'paper'].some((w) => lower.includes(w)) ||
+      finalPrompt.length < 20;
+
+    if (attachedFiles.length > 0 && isSolveIntent) {
+      finalPrompt = "Please solve all questions, mathematical problems, and exercises in the attached image/question paper in complete detail step-by-step." +
+        (finalPrompt ? ` (User note: ${finalPrompt})` : "");
     } else if (!finalPrompt && attachedFiles.length > 0) {
       const hasImg = attachedFiles.some((f) =>
         f.media_type === 'image' || f.filename?.match(/\.(png|jpg|jpeg|webp)$/i)
       );
       finalPrompt = hasImg
-        ? "Please analyze and describe this attached image/screenshot in detail, reading all text and explaining what is shown."
+        ? "Please analyze and solve the problems in this attached image/screenshot in detail."
         : "Please review and explain the attached document.";
     }
 

@@ -297,16 +297,19 @@ async def stream_message(
     # Ensure the multimodal visual content is directly attached to the latest user message
     if multimodal_context and llm_messages and llm_messages[-1]["role"] == "user":
         clean_user_prompt = llm_messages[-1]["content"].strip()
-        short_intent = clean_user_prompt.lower() in [
-            "answer", "anser", "ans", "solve", "solve this", "solve these",
-            "solve these questions", "questions", "please answer", "help", "solution",
-            "উত্তর", "সমাধান", "প্রশ্ন", "answer please"
-        ]
+        low = clean_user_prompt.lower()
+        is_solve_intent = (
+            any(w in low for w in [
+                "answer", "anser", "ans", "solve", "solution", "ques", "question",
+                "উত্তর", "সমাধান", "প্রশ্ন", "exam", "paper", "explain", "ব্যাখ্যা"
+            ])
+            or len(clean_user_prompt) < 25
+        )
         
         explicit_directive = (
-            "The user submitted an exam question paper and asked for the answers. "
-            "Please solve and provide comprehensive, step-by-step answers for ALL questions (e.g. Q1, Q2, Q3) shown in the paper."
-            if short_intent else
+            "The user submitted an exam question paper or exercise and requested the answers/solutions. "
+            "Please solve and provide comprehensive, step-by-step answers for ALL questions (e.g. Q1, Q2, Q3) shown in the paper in complete detail."
+            if is_solve_intent else
             "Carefully examine the questions and text on this uploaded document/image and answer what was requested."
         )
 

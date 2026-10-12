@@ -127,7 +127,10 @@ class VisionService:
                         data = urllib.parse.urlencode({
                             "base64Image": f"data:image/jpeg;base64,{raw_b64}",
                             "apikey": key,
-                            "language": "eng"
+                            "language": "eng",
+                            "OCREngine": "2",
+                            "detectOrientation": "true",
+                            "scale": "true"
                         }).encode("utf-8")
 
                         req = urllib.request.Request(
@@ -135,20 +138,70 @@ class VisionService:
                             data=data,
                             headers={"User-Agent": "PlutoAI/1.0"}
                         )
-                        with urllib.request.urlopen(req, timeout=25) as resp:
+                        with urllib.request.urlopen(req, timeout=8) as resp:
                             resp_data = json.loads(resp.read().decode("utf-8"))
                             parsed_results = resp_data.get("ParsedResults", [])
                             if parsed_results:
                                 cloud_text = parsed_results[0].get("ParsedText", "").strip()
-                                if cloud_text:
+                                if len(cloud_text) > 15:
                                     result["extracted_text"] = cloud_text
                                     break
-                    except Exception as k_err:
+                    except Exception:
                         continue
             except Exception as cloud_err:
                 result["cloud_ocr_error"] = str(cloud_err)
 
-        # 4. Create a clean natural summary description
+        # 4. Multimodal AI Vision Fallback (Google Gemini Vision)
+        if len(result["extracted_text"].strip()) < 30:
+            try:
+                gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+                if not gemini_key:
+                    try:
+                        from app.core.config import settings
+                        gemini_key = settings.GEMINI_API_KEY or ""
+                    except Exception:
+                        pass
+                if gemini_key:
+                    # Prepare image bytes if raw_b64 wasn't generated
+                    if not raw_b64:
+                        import base64
+                        with open(file_path, "rb") as f_img:
+                            raw_b64 = base64.b64encode(f_img.read()).decode("utf-8")
+                    
+                    import urllib.request
+                    import json
+                    for gem_model in ["gemini-3.5-flash", "gemini-2.5-flash"]:
+                        try:
+                            gem_url = f"https://generativelanguage.googleapis.com/v1beta/models/{gem_model}:generateContent?key={gemini_key}"
+                            gem_payload = {
+                                "contents": [
+                                    {
+                                        "parts": [
+                                            {"text": "Carefully extract and transcribe all visible questions, problems, text, diagrams, and mathematical expressions from this image verbatim. If this is an exam paper or question sheet, extract every single question number and text in full."},
+                                            {"inline_data": {"mime_type": "image/jpeg", "data": raw_b64}}
+                                        ]
+                                    }
+                                ]
+                            }
+                            gem_req = urllib.request.Request(
+                                gem_url,
+                                data=json.dumps(gem_payload).encode("utf-8"),
+                                headers={"Content-Type": "application/json"}
+                            )
+                            with urllib.request.urlopen(gem_req, timeout=12) as gem_resp:
+                                gem_data = json.loads(gem_resp.read().decode("utf-8"))
+                                cands = gem_data.get("candidates", [])
+                                if cands:
+                                    g_text = cands[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+                                    if len(g_text) > 15:
+                                        result["extracted_text"] = g_text
+                                        break
+                        except Exception:
+                            continue
+            except Exception as g_err:
+                result["gemini_ocr_error"] = str(g_err)
+
+        # 5. Create a clean natural summary description
         lines_count = len(result["extracted_text"].splitlines()) if result["extracted_text"] else 0
         desc_parts = [
             f"Image ({result['dimensions']}, {result['format']})"
@@ -180,12 +233,16 @@ class VisionService:
             lines.append(extracted)
             lines.append("```")
             lines.append(
-                "CRITICAL INSTRUCTION: The user has uploaded an image containing text/questions (e.g. an exam question paper, code, or document). "
-                "Carefully read all the recognized questions and text above, and provide complete, detailed, step-by-step answers "
-                "to what the user is asking about the image. Do NOT say you cannot see the image; use the exact extracted text above!"
+                "CRITICAL INSTRUCTION FOR PLUTO AI:\n"
+                "The user has uploaded an image containing questions/problems/notes (such as an exam question paper or exercise).\n"
+                "Carefully read all the recognized questions above and provide COMPLETE, ACCURATE, STEP-BY-STEP SOLUTIONS "
+                "for all questions shown in the document. Answer in natural Bengali or English as appropriate. "
+                "Do NOT state that text could not be read or give robotic diagnostic reports; directly answer and solve the questions!"
             )
         else:
-            lines.append("Note: Visual content detected. Assist the user with their inquiry.")
+            lines.append(
+                "The user uploaded an image. If the user asks for questions or solutions, explain what you observe or provide helpful guidance politely without technical OCR error messages."
+            )
 
         lines.append("--- END IMAGE ANALYSIS ---")
         return "\n".join(lines)

@@ -3,6 +3,7 @@ from app.core.config import settings
 from app.ai.base_provider import BaseAIProvider
 from app.ai.openai_provider import OpenAIProvider
 from app.ai.groq_provider import GroqProvider
+from app.ai.gemini_provider import GeminiProvider
 
 class AIProviderFactory:
     def __init__(self):
@@ -21,6 +22,12 @@ class AIProviderFactory:
         if settings.GROQ_API_KEY:
             self._providers["groq"] = GroqProvider(
                 api_key=settings.GROQ_API_KEY
+            )
+
+        # Initialize Gemini if key is present
+        if settings.GEMINI_API_KEY:
+            self._providers["gemini"] = GeminiProvider(
+                api_key=settings.GEMINI_API_KEY
             )
 
     def get_provider(self, provider_name: Optional[str] = None) -> Optional[BaseAIProvider]:
