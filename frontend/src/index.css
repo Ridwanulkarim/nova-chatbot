@@ -1,0 +1,147 @@
+@import 'katex/dist/katex.min.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: rgba(147, 112, 219, 0.15);
+  }
+}
+
+/* 1. User's uploaded Ethereal Lavender Gradient Theme */
+.theme-lavender {
+  background-color: #faf5ff;
+  background-image: url('/lavender_bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: #1e1b4b;
+}
+
+/* 2. Dark Ethereal Lavender Theme */
+.theme-lavender-dark {
+  background-color: #0c0a17;
+  background-image: 
+    radial-gradient(circle at center, rgba(32, 22, 53, 0.85) 0%, rgba(16, 12, 28, 0.94) 50%, rgba(9, 7, 16, 0.98) 100%),
+    url('/lavender_bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: #f1f5f9;
+}
+
+/* 3. Classic Midnight Slate */
+.theme-midnight {
+  background-color: #020617;
+  color: #f8fafc;
+}
+
+/* Scoped Lavender Light Mode overrides for high-contrast glass UI */
+.theme-lavender .text-slate-100,
+.theme-lavender .text-slate-200,
+.theme-lavender .text-slate-300 {
+  color: #1e1b4b !important;
+}
+
+.theme-lavender .text-slate-400,
+.theme-lavender .text-slate-500 {
+  color: #645c82 !important;
+}
+
+.theme-lavender .bg-slate-900,
+.theme-lavender .bg-slate-925,
+.theme-lavender .bg-slate-950 {
+  background-color: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+.theme-lavender .bg-slate-800,
+.theme-lavender .bg-slate-850 {
+  background-color: rgba(243, 232, 255, 0.65) !important;
+}
+
+.theme-lavender .border-slate-800,
+.theme-lavender .border-slate-700 {
+  border-color: rgba(192, 132, 252, 0.28) !important;
+}
+
+/* User Message bubble in lavender theme */
+.theme-lavender .group.bg-slate-900\/40 {
+  background-color: rgba(233, 213, 255, 0.35) !important;
+  border-top: 1px solid rgba(192, 132, 252, 0.2) !important;
+  border-bottom: 1px solid rgba(192, 132, 252, 0.2) !important;
+}
+
+/* Pre / Code blocks in lavender theme maintain crisp dark IDE contrast */
+.theme-lavender pre {
+  background-color: #131124 !important;
+  border: 1px solid rgba(192, 132, 252, 0.25) !important;
+}
+
+.theme-lavender pre * {
+  color: #e2e8f0 !important;
+}
+
+.theme-lavender pre .text-slate-300,
+.theme-lavender pre .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+/* Custom sleek scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.5);
+}
+
+.theme-lavender ::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.35);
+}
+
+.theme-lavender ::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.65);
+}
+
+/* Code block typography */
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* KaTeX custom responsive math typography */
+.katex-display {
+  margin: 0.75rem 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
+}
+
+.katex {
+  font-size: 1.08em;
+  color: inherit;
+}
+
+.theme-lavender .katex {
+  color: #1e1b4b !important;
+}
+
+.dark .katex,
+.theme-lavender-dark .katex,
+.theme-midnight .katex {
+  color: #f1f5f9 !important;
+}
