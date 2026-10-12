@@ -6,10 +6,24 @@ import { useAuth } from './AuthContext';
 const ChatContext = createContext(null);
 
 export function ChatProvider({ children }) {
-  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const { isAuthenticated, loading: authLoading, setIsAuthModalOpen } = useAuth();
   const [conversations, setConversations] = useState([]);
-  const [activeConversation, setActiveConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
+  const [activeConversation, setActiveConversation] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pluto_active_conversation');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pluto_messages');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [isStreaming, setIsStreaming] = useState(false);
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
@@ -18,6 +32,30 @@ export function ChatProvider({ children }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [errorMessage, setErrorMessage] = useState(null);
   const [dailyQuota, setDailyQuota] = useState(null);
+
+  // Sync activeConversation to localStorage
+  useEffect(() => {
+    try {
+      if (activeConversation) {
+        localStorage.setItem('pluto_active_conversation', JSON.stringify(activeConversation));
+        localStorage.setItem('pluto_active_conv_id', String(activeConversation.id));
+      } else {
+        localStorage.removeItem('pluto_active_conversation');
+        localStorage.removeItem('pluto_active_conv_id');
+      }
+    } catch (e) {}
+  }, [activeConversation]);
+
+  // Sync messages to localStorage
+  useEffect(() => {
+    try {
+      if (messages && messages.length > 0) {
+        localStorage.setItem('pluto_messages', JSON.stringify(messages));
+      } else if (!activeConversation) {
+        localStorage.removeItem('pluto_messages');
+      }
+    } catch (e) {}
+  }, [messages, activeConversation]);
 
   const fetchQuota = async () => {
     if (!isAuthenticated) return;
@@ -51,23 +89,68 @@ export function ChatProvider({ children }) {
 
   // Load conversations when user is authenticated
   const loadConversations = async () => {
+    if (authLoading) return;
+
     if (!isAuthenticated) {
       setConversations([]);
       setActiveConversation(null);
       setMessages([]);
+      try {
+        localStorage.removeItem('pluto_active_conversation');
+        localStorage.removeItem('pluto_active_conv_id');
+        localStorage.removeItem('pluto_messages');
+      } catch (e) {}
       return;
     }
     try {
       const list = await api.listConversations(searchQuery);
       setConversations(list);
+
+      // Auto-restore active conversation if not searching
+      if (!searchQuery && list.length > 0) {
+        const savedConvId = localStorage.getItem('pluto_active_conv_id') || activeConversation?.id;
+        let targetConv = null;
+        if (savedConvId) {
+          targetConv = list.find((c) => String(c.id) === String(savedConvId));
+        }
+
+        // If target exists in list, sync latest messages from backend
+        if (targetConv) {
+          try {
+            const conv = await api.getConversation(targetConv.id);
+            setActiveConversation(conv);
+            if (conv.messages) {
+              setMessages(conv.messages);
+            }
+            if (conv.model) {
+              setSelectedModel(conv.model);
+            }
+          } catch (e) {
+            console.warn('Could not re-fetch active conversation:', e);
+          }
+        } else if (!savedConvId && (!messages || messages.length === 0)) {
+          // If no active conversation saved and no messages currently showing, pick latest
+          const latest = list[0];
+          try {
+            const conv = await api.getConversation(latest.id);
+            setActiveConversation(conv);
+            setMessages(conv.messages || []);
+            if (conv.model) {
+              setSelectedModel(conv.model);
+            }
+          } catch (e) {}
+        }
+      }
     } catch (err) {
       console.error('Failed to load conversations:', err);
     }
   };
 
   useEffect(() => {
-    loadConversations();
-  }, [isAuthenticated, searchQuery]);
+    if (!authLoading) {
+      loadConversations();
+    }
+  }, [isAuthenticated, authLoading, searchQuery]);
 
   // Select a conversation and load its messages
   const selectConversation = async (conversationId) => {
@@ -75,10 +158,17 @@ export function ChatProvider({ children }) {
     try {
       const conv = await api.getConversation(conversationId);
       setActiveConversation(conv);
-      setMessages(conv.messages || []);
+      const convMsgs = conv.messages || [];
+      setMessages(convMsgs);
+      try {
+        localStorage.setItem('pluto_active_conversation', JSON.stringify(conv));
+        localStorage.setItem('pluto_active_conv_id', String(conv.id));
+        localStorage.setItem('pluto_messages', JSON.stringify(convMsgs));
+      } catch (e) {}
       if (conv.model) {
         setSelectedModel(conv.model);
       }
+      return conv;
     } catch (err) {
       console.error('Failed to get conversation:', err);
       setErrorMessage('Could not load conversation');
@@ -96,6 +186,11 @@ export function ChatProvider({ children }) {
       setConversations((prev) => [newConv, ...prev]);
       setActiveConversation(newConv);
       setMessages([]);
+      try {
+        localStorage.setItem('pluto_active_conversation', JSON.stringify(newConv));
+        localStorage.setItem('pluto_active_conv_id', String(newConv.id));
+        localStorage.removeItem('pluto_messages');
+      } catch (e) {}
       return newConv;
     } catch (err) {
       console.error('Failed to create new chat:', err);
@@ -122,10 +217,20 @@ export function ChatProvider({ children }) {
   const deleteConversation = async (id) => {
     try {
       await api.deleteConversation(id);
-      setConversations((prev) => prev.filter((c) => c.id !== id));
+      const remaining = conversations.filter((c) => c.id !== id);
+      setConversations(remaining);
       if (activeConversation?.id === id) {
-        setActiveConversation(null);
-        setMessages([]);
+        if (remaining.length > 0) {
+          await selectConversation(remaining[0].id);
+        } else {
+          setActiveConversation(null);
+          setMessages([]);
+          try {
+            localStorage.removeItem('pluto_active_conversation');
+            localStorage.removeItem('pluto_active_conv_id');
+            localStorage.removeItem('pluto_messages');
+          } catch (e) {}
+        }
       }
     } catch (err) {
       console.error('Failed to delete conversation:', err);
