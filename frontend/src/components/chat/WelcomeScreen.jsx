@@ -170,7 +170,7 @@ export function WelcomeScreen({
       onDrop={handleDrop}
       onPaste={handlePaste}
       tabIndex={0}
-      className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 w-full max-w-3xl mx-auto my-auto relative select-none focus:outline-none py-6 sm:py-0 overflow-y-auto"
+      className="flex-1 flex flex-col items-center justify-start sm:justify-center px-3 sm:px-4 w-full max-w-3xl mx-auto my-0 sm:my-auto pt-6 sm:pt-0 pb-6 relative select-none focus:outline-none overflow-y-auto min-h-full"
     >
       {/* Drag & Drop Visual Overlay */}
       {isDragging && (
@@ -349,12 +349,12 @@ export function WelcomeScreen({
           />
 
           {/* Right Controls inside pill: [Think] [Mic] [Waveform] */}
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
             {/* Think Button */}
             <button
               type="button"
               onClick={() => setIsThinking((v) => !v)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+              className={`hidden xs:flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
                 isThinking
                   ? 'bg-purple-600/30 text-purple-300 border border-purple-500/50 shadow-sm'
                   : isLight
@@ -364,7 +364,7 @@ export function WelcomeScreen({
               title="Toggle Deep Reasoning (Think mode)"
             >
               <Brain size={14} className={isThinking ? 'text-purple-400' : 'text-slate-400'} />
-              <span className="hidden sm:inline">Think</span>
+              <span className="hidden md:inline">Think</span>
             </button>
 
             {/* Mic Voice-to-Text Button & Language Switch */}
@@ -386,7 +386,7 @@ export function WelcomeScreen({
               <button
                 type="button"
                 onClick={handleToggleListening}
-                className={`p-1.5 rounded-full transition-colors ${
+                className={`p-1 sm:p-1.5 rounded-full transition-colors ${
                   isListening
                     ? 'text-rose-400 animate-pulse bg-rose-500/10'
                     : isLight
@@ -395,7 +395,7 @@ export function WelcomeScreen({
                 }`}
                 title={isListening ? 'কণ্ঠ গ্রহণ বন্ধ করুন' : `কণ্ঠ সহকারী টাইপিং (${language === 'bn-BD' ? 'বাংলা' : 'English'})`}
               >
-                <Mic size={17} />
+                <Mic size={16} />
               </button>
             </div>
 
@@ -403,10 +403,10 @@ export function WelcomeScreen({
             <button
               type="button"
               onClick={onOpenVoiceModal}
-              className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 transition-transform hover:scale-105 flex-shrink-0"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 transition-transform hover:scale-105 flex-shrink-0"
               title="Start Live Voice Assistant"
             >
-              <AudioLines size={16} />
+              <AudioLines size={15} />
             </button>
 
             {/* Send Button */}
@@ -414,7 +414,7 @@ export function WelcomeScreen({
               type="button"
               onClick={() => handleSend()}
               disabled={(!input.trim() && attachedFiles.length === 0) || isStreaming || uploadingFile}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
                 input.trim() || attachedFiles.length > 0
                   ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/40 hover:scale-105 active:scale-95 cursor-pointer ring-2 ring-purple-400/30'
                   : isLight
@@ -424,9 +424,9 @@ export function WelcomeScreen({
               title="Send message (মেসেজ পাঠান)"
             >
               {uploadingFile ? (
-                <Loader2 size={15} className="animate-spin text-purple-300" />
+                <Loader2 size={14} className="animate-spin text-purple-300" />
               ) : (
-                <Send size={15} />
+                <Send size={14} />
               )}
             </button>
           </div>

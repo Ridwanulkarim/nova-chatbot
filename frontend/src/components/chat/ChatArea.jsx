@@ -12,6 +12,7 @@ import {
   Boxes,
   Palette,
   Sparkles,
+  SquarePen,
 } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { MessageItem } from './MessageItem';
@@ -30,6 +31,7 @@ export function ChatArea({
 }) {
   const {
     activeConversation,
+    createNewChat,
     messages,
     selectedModel,
     setSelectedModel,
@@ -81,13 +83,13 @@ export function ChatArea({
     >
       {/* Top Header */}
       <header
-        className={`h-14 border-b px-2.5 sm:px-4 flex items-center justify-between backdrop-blur-md z-10 flex-shrink-0 ${
+        className={`h-14 border-b px-2 sm:px-4 flex items-center justify-between backdrop-blur-md z-10 flex-shrink-0 max-w-full overflow-x-hidden ${
           theme === 'lavender-glow'
             ? 'border-purple-200/40 bg-white/40 text-slate-800'
             : 'border-slate-800/80 bg-slate-950/80 text-slate-100'
         }`}
       >
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
           <button
             onClick={onToggleSidebar}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
@@ -96,22 +98,36 @@ export function ChatArea({
             <PanelLeft size={18} />
           </button>
 
-          {/* Conversation Title (only in active conversation) */}
-          {activeConversation && messages.length > 0 && (
-            <div className="truncate min-w-0">
-              <h1
-                className={`font-semibold text-xs sm:text-sm truncate max-w-[100px] xs:max-w-[150px] sm:max-w-xs ${
-                  theme === 'lavender-glow' ? 'text-slate-850' : 'text-slate-200'
+          {/* New Chat Button - Always Visible & Clickable on Mobile & Desktop */}
+          <button
+            onClick={createNewChat}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex-shrink-0 shadow-xs border ${
+              theme === 'lavender-glow'
+                ? 'bg-purple-100 hover:bg-purple-200 text-purple-950 border-purple-200 shadow-purple-900/5'
+                : 'bg-slate-900 hover:bg-slate-800 text-slate-100 hover:text-white border-slate-700/80'
+            }`}
+            title="Start New Chat"
+          >
+            <SquarePen size={14} className={theme === 'lavender-glow' ? 'text-purple-700' : 'text-brand-400'} />
+            <span className="text-xs">New Chat</span>
+          </button>
+
+          {/* Conversation Title (if inside conversation with messages) */}
+          {activeConversation && messages.length > 0 && activeConversation.title !== 'New Chat' && (
+            <div className="truncate min-w-0 hidden md:block">
+              <span
+                className={`text-xs truncate max-w-[120px] lg:max-w-xs ${
+                  theme === 'lavender-glow' ? 'text-slate-600' : 'text-slate-400'
                 }`}
               >
-                {activeConversation.title}
-              </h1>
+                / {activeConversation.title}
+              </span>
             </div>
           )}
         </div>
 
-        {/* Top Center Pill Switcher: [ Nova Chat | + Workspace ] */}
-        <div className={`hidden md:flex items-center rounded-full p-0.5 text-xs shadow-xs border ${
+        {/* Top Center Pill Switcher: [ Pluto Chat | + Workspace ] - only on very wide screens */}
+        <div className={`hidden xl:flex items-center rounded-full p-0.5 text-xs shadow-xs border ${
           theme === 'lavender-glow'
             ? 'bg-purple-100/80 border-purple-200'
             : 'bg-[#202123]/80 border-white/10'
@@ -136,7 +152,7 @@ export function ChatArea({
         </div>
 
         {/* Top Controls */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
           {/* Daily Quota Indicator Pill (Responsive) */}
           {(() => {
             const quota = dailyQuota || {
@@ -262,10 +278,10 @@ export function ChatArea({
             </select>
           </div>
 
-          {/* Upgrade Button */}
+          {/* Upgrade Button (Desktop & Tablet) */}
           <button
             onClick={() => setShowQuotaTooltip((v) => !v)}
-            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-xs border ${
+            className={`hidden md:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-xs border ${
               theme === 'lavender-glow'
                 ? 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700 hover:text-purple-900'
                 : 'bg-slate-900/90 hover:bg-slate-800 border-slate-700/60 text-sky-400 hover:text-sky-300'
@@ -273,13 +289,13 @@ export function ChatArea({
             title="View Plan & Quota"
           >
             <Sparkles size={13} className={theme === 'lavender-glow' ? 'text-purple-600' : 'text-sky-400'} />
-            <span className="hidden sm:inline">Upgrade</span>
+            <span>Upgrade</span>
           </button>
 
           {/* Live Voice Mode Button */}
           <button
             onClick={onOpenVoiceModal}
-            className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all shadow-xs group border ${
+            className={`flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium transition-all shadow-xs group border ${
               theme === 'lavender-glow'
                 ? 'bg-purple-100 hover:bg-purple-200 text-purple-900 border-purple-200'
                 : 'bg-gradient-to-r from-brand-600/30 to-indigo-600/30 hover:from-brand-600/50 hover:to-indigo-600/50 border-brand-500/30 text-brand-200'
@@ -287,7 +303,7 @@ export function ChatArea({
             title="Start Live Voice Assistant"
           >
             <Headphones size={15} className={`${theme === 'lavender-glow' ? 'text-purple-700' : 'text-brand-300'} group-hover:scale-110 transition-transform`} />
-            <span className="hidden md:inline">Voice Mode</span>
+            <span className="hidden lg:inline">Voice Mode</span>
           </button>
 
           {/* Share Button (Desktop/Tablet) */}
