@@ -155,10 +155,10 @@ export function ChatComposer({ onOpenDocModal, theme }) {
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 pb-4">
+    <div className="w-full max-w-3xl mx-auto px-2 sm:px-4 pb-2 sm:pb-4">
       {/* Attached Media & Files Preview Bar */}
       {attachedFiles.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-2.5 px-1 max-h-36 overflow-y-auto">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-2 px-1 max-h-28 sm:max-h-36 overflow-y-auto">
           {attachedFiles.map((f) => {
             const isImg = f.media_type === 'image' || f.url?.match(/\.(jpeg|jpg|gif|png|webp|bmp)$/i);
             const isVid = f.media_type === 'video' || f.url?.match(/\.(mp4|webm|mov)$/i);
@@ -168,7 +168,7 @@ export function ChatComposer({ onOpenDocModal, theme }) {
             return (
               <div
                 key={f.id}
-                className={`group relative flex items-center gap-2 p-1.5 pr-2.5 rounded-xl border shadow-md text-xs ${
+                className={`group relative flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 pr-2 sm:pr-2.5 rounded-xl border shadow-md text-xs ${
                   isLight
                     ? 'bg-purple-50/90 border-purple-200 text-slate-800'
                     : 'bg-slate-900 border-slate-700/80 text-slate-200'
@@ -178,27 +178,27 @@ export function ChatComposer({ onOpenDocModal, theme }) {
                   <img
                     src={fUrl}
                     alt={f.filename}
-                    className={`w-8 h-8 rounded-lg object-cover border flex-shrink-0 ${
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover border flex-shrink-0 ${
                       isLight ? 'border-purple-200' : 'border-slate-700'
                     }`}
                   />
                 ) : isVid ? (
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     isLight ? 'bg-indigo-100 text-indigo-700' : 'bg-indigo-950 text-indigo-400'
                   }`}>
-                    <Film size={16} />
+                    <Film size={15} />
                   </div>
                 ) : (
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     isLight ? 'bg-purple-100 text-purple-700' : 'bg-slate-800 text-brand-400'
                   }`}>
-                    <FileText size={16} />
+                    <FileText size={15} />
                   </div>
                 )}
 
-                <div className="truncate max-w-[140px]">
-                  <div className="truncate font-medium">{f.filename}</div>
-                  <div className={`text-[10px] uppercase tracking-wider ${
+                <div className="truncate max-w-[100px] xs:max-w-[130px] sm:max-w-[160px]">
+                  <div className="truncate font-medium text-[11px] sm:text-xs">{f.filename}</div>
+                  <div className={`text-[9px] sm:text-[10px] uppercase tracking-wider ${
                     isLight ? 'text-slate-500' : 'text-slate-400'
                   }`}>
                     {f.media_type || 'file'}
@@ -208,7 +208,7 @@ export function ChatComposer({ onOpenDocModal, theme }) {
                 <button
                   type="button"
                   onClick={() => removeFile(f.id)}
-                  className={`p-1 rounded-full transition-colors ml-1 ${
+                  className={`p-1 rounded-full transition-colors ml-0.5 ${
                     isLight
                       ? 'hover:bg-purple-200/60 text-slate-500 hover:text-rose-600'
                       : 'hover:bg-slate-800 text-slate-400 hover:text-rose-400'
@@ -245,25 +245,25 @@ export function ChatComposer({ onOpenDocModal, theme }) {
       >
         {/* Full Drop Overlay */}
         {isDragging && (
-          <div className="absolute inset-0 z-30 bg-slate-950/90 border-2 border-dashed border-brand-400 flex flex-col items-center justify-center backdrop-blur-sm pointer-events-none">
-            <UploadCloud size={36} className="text-brand-400 animate-bounce mb-1" />
-            <p className="text-sm font-semibold text-white">Drop your image, screenshot, or file</p>
-            <p className="text-xs text-brand-300">Pluto AI will visually analyze and inspect it</p>
+          <div className="absolute inset-0 z-30 bg-slate-950/90 border-2 border-dashed border-brand-400 flex flex-col items-center justify-center backdrop-blur-sm pointer-events-none p-4 text-center">
+            <UploadCloud size={32} className="text-brand-400 animate-bounce mb-1" />
+            <p className="text-xs sm:text-sm font-semibold text-white">Drop your image, screenshot, or file</p>
+            <p className="text-[10px] sm:text-xs text-brand-300">Pluto AI will visually analyze and inspect it</p>
           </div>
         )}
 
         {/* Image Mode Banner */}
         {imageMode && (
-          <div className={`px-4 pt-2.5 pb-0 flex items-center justify-between text-xs font-medium ${
+          <div className={`px-3 sm:px-4 pt-2.5 pb-0 flex items-center justify-between text-xs font-medium ${
             isLight ? 'text-purple-700' : 'text-purple-300'
           }`}>
-            <span className="flex items-center gap-1.5">
-              <Palette size={14} className={isLight ? 'text-purple-600' : 'text-purple-400'} />
-              <span>AI Image Generation Mode Active</span>
+            <span className="flex items-center gap-1.5 truncate">
+              <Palette size={14} className={isLight ? 'text-purple-600' : 'text-purple-400 flex-shrink-0'} />
+              <span className="truncate">AI Image Generation Mode Active</span>
             </span>
             <button
               onClick={() => setImageMode(false)}
-              className={isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white'}
+              className={`p-1 ${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white'}`}
             >
               <X size={13} />
             </button>
@@ -281,10 +281,10 @@ export function ChatComposer({ onOpenDocModal, theme }) {
               ? 'Describe the image you want Pluto AI to generate in detail...'
               : isListening
               ? 'Listening to your voice... Speak now.'
-              : 'Ask anything, paste screenshots (Cmd+V), attach files, or drag & drop...'
+              : 'Ask anything, paste screenshots (Cmd+V), attach files...'
           }
           rows={1}
-          className={`w-full bg-transparent px-4 pt-3.5 pb-12 text-sm resize-none focus:outline-none max-h-48 ${
+          className={`w-full bg-transparent px-3 sm:px-4 pt-3 sm:pt-3.5 pb-11 sm:pb-12 text-xs sm:text-sm resize-none focus:outline-none max-h-48 ${
             isLight
               ? 'text-slate-900 placeholder-slate-400'
               : 'text-slate-100 placeholder-slate-400'
@@ -302,14 +302,14 @@ export function ChatComposer({ onOpenDocModal, theme }) {
         />
 
         {/* Bottom Toolbar Controls */}
-        <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between pointer-events-none">
-          <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="absolute bottom-2 left-2 right-2 sm:bottom-2.5 sm:left-3 sm:right-3 flex items-center justify-between pointer-events-none">
+          <div className="flex items-center gap-1 sm:gap-1.5 pointer-events-auto min-w-0 max-w-[calc(100%-88px)] xs:max-w-[calc(100%-105px)] sm:max-w-none overflow-x-auto no-scrollbar py-0.5">
             {/* Attach Photos, Videos, Files Button */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingFile}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-transparent transition-all ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-medium border border-transparent transition-all flex-shrink-0 ${
                 isLight
                   ? 'text-slate-600 hover:text-slate-900 hover:bg-purple-100/70'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -317,18 +317,18 @@ export function ChatComposer({ onOpenDocModal, theme }) {
               title="Attach photos, files, or videos"
             >
               {uploadingFile ? (
-                <Loader2 size={13} className="animate-spin text-brand-400" />
+                <Loader2 size={13} className="animate-spin text-brand-400 flex-shrink-0" />
               ) : (
-                <Paperclip size={13} />
+                <Paperclip size={13} className="flex-shrink-0" />
               )}
-              <span>{uploadingFile ? 'Uploading...' : 'Attach'}</span>
+              <span className="hidden xs:inline">{uploadingFile ? 'Uploading...' : 'Attach'}</span>
             </button>
 
             {/* AI Image Generator Toggle */}
             <button
               type="button"
               onClick={() => setImageMode((prev) => !prev)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex-shrink-0 ${
                 imageMode
                   ? 'bg-purple-500/20 text-purple-700 border border-purple-400/50 shadow-xs'
                   : isLight
@@ -337,15 +337,15 @@ export function ChatComposer({ onOpenDocModal, theme }) {
               }`}
               title="Generate AI images"
             >
-              <Palette size={13} className={imageMode ? 'text-purple-600' : ''} />
-              <span>Generate Image</span>
+              <Palette size={13} className={`${imageMode ? 'text-purple-600' : ''} flex-shrink-0`} />
+              <span className="hidden sm:inline">Generate Image</span>
             </button>
 
             {/* Web Search Toggle */}
             <button
               type="button"
               onClick={() => setWebSearchEnabled((prev) => !prev)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex-shrink-0 ${
                 webSearchEnabled
                   ? isLight
                     ? 'bg-purple-100 text-purple-900 border border-purple-300 shadow-xs'
@@ -356,8 +356,8 @@ export function ChatComposer({ onOpenDocModal, theme }) {
               }`}
               title="Search live web for real-time sources"
             >
-              <Globe size={13} className={webSearchEnabled ? (isLight ? 'text-purple-600' : 'text-brand-400') : ''} />
-              <span className="hidden sm:inline">Web Search</span>
+              <Globe size={13} className={`${webSearchEnabled ? (isLight ? 'text-purple-600' : 'text-brand-400') : ''} flex-shrink-0`} />
+              <span className="hidden md:inline">Web Search</span>
             </button>
 
             {/* Quick Model Selector */}
@@ -365,7 +365,7 @@ export function ChatComposer({ onOpenDocModal, theme }) {
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className={`border rounded-md text-[11px] px-2 py-0.5 focus:outline-none cursor-pointer hidden md:block ${
+                className={`border rounded-md text-[11px] px-1.5 sm:px-2 py-0.5 focus:outline-none cursor-pointer hidden lg:block ${
                   isLight
                     ? 'bg-purple-50 text-slate-800 border-purple-200 focus:border-purple-400'
                     : 'bg-slate-850 text-slate-300 border-slate-700/60 focus:border-brand-500'
@@ -381,14 +381,14 @@ export function ChatComposer({ onOpenDocModal, theme }) {
           </div>
 
           {/* Right Action Controls: Voice Mic & Send */}
-          <div className="flex items-center gap-2 pointer-events-auto">
+          <div className="flex items-center gap-1 sm:gap-1.5 pointer-events-auto flex-shrink-0 ml-1">
             {/* Voice Input Microphone & Language Switcher */}
             {hasSpeechRecognition && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5 sm:gap-1">
                 <button
                   type="button"
                   onClick={() => setLanguage((l) => (l === 'bn-BD' ? 'en-US' : 'bn-BD'))}
-                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded transition-all border ${
+                  className={`text-[9px] sm:text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded transition-all border ${
                     language === 'bn-BD'
                       ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
                       : isLight
@@ -402,7 +402,7 @@ export function ChatComposer({ onOpenDocModal, theme }) {
                 <button
                   type="button"
                   onClick={handleMicToggle}
-                  className={`p-1.5 rounded-lg transition-all ${
+                  className={`p-1 sm:p-1.5 rounded-lg transition-all ${
                     isListening
                       ? 'bg-rose-600 text-white shadow-md shadow-rose-600/40 animate-pulse'
                       : isLight
@@ -411,7 +411,7 @@ export function ChatComposer({ onOpenDocModal, theme }) {
                   }`}
                   title={isListening ? 'Stop listening' : `Voice dictation (${language === 'bn-BD' ? 'বাংলা' : 'English'})`}
                 >
-                  {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                  {isListening ? <MicOff size={15} /> : <Mic size={15} />}
                 </button>
               </div>
             )}
@@ -421,17 +421,17 @@ export function ChatComposer({ onOpenDocModal, theme }) {
               <button
                 type="button"
                 onClick={stopGeneration}
-                className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-600 hover:bg-rose-500 text-white shadow-md transition-colors"
+                className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-600 hover:bg-rose-500 text-white shadow-md transition-colors flex-shrink-0"
                 title="Stop response"
               >
-                <Square size={14} fill="currentColor" />
+                <Square size={13} fill="currentColor" />
               </button>
             ) : (
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={!input.trim() && attachedFiles.length === 0}
-                className={`flex items-center justify-center w-8 h-8 rounded-lg text-white shadow-md transition-all ${
+                className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-white shadow-md transition-all flex-shrink-0 ${
                   input.trim() || attachedFiles.length > 0
                     ? imageMode
                       ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-600/30'
@@ -442,7 +442,7 @@ export function ChatComposer({ onOpenDocModal, theme }) {
                 }`}
                 title="Send message"
               >
-                <Send size={14} />
+                <Send size={13} />
               </button>
             )}
           </div>

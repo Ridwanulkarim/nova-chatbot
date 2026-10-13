@@ -58,19 +58,19 @@ export function MessageItem({ message, isLast, onEdit }) {
   }
 
   return (
-    <div className={`group py-5 px-4 md:px-6 transition-colors ${isUser ? 'bg-slate-900/40' : 'bg-transparent'}`}>
-      <div className="max-w-3xl mx-auto flex gap-4 items-start">
+    <div className={`group py-3.5 px-3 sm:py-5 sm:px-6 transition-colors ${isUser ? 'bg-slate-900/40' : 'bg-transparent'}`}>
+      <div className="max-w-3xl mx-auto flex gap-2.5 sm:gap-4 items-start">
         {/* Avatar */}
         <div className="flex-shrink-0 mt-0.5">
           {isUser ? (
-            <div className="w-8 h-8 rounded-full bg-slate-700/80 flex items-center justify-center text-slate-200 border border-slate-600/50 shadow-sm">
-              <User size={16} />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-700/80 flex items-center justify-center text-slate-200 border border-slate-600/50 shadow-sm">
+              <User size={15} />
             </div>
           ) : (
             <img
               src="/pluto_logo.png"
               alt="Pluto AI"
-              className="w-8 h-8 rounded-full object-contain shadow-md shadow-purple-500/20 ring-1 ring-purple-400/30"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-contain shadow-md shadow-purple-500/20 ring-1 ring-purple-400/30"
             />
           )}
         </div>
@@ -178,7 +178,7 @@ export function MessageItem({ message, isLast, onEdit }) {
 
           {/* Action Toolbar */}
           {!message.isStreaming && message.content && (
-            <div className="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-1.5 sm:gap-2 mt-2.5 sm:mt-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
               <button
                 onClick={handleCopy}
                 className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"

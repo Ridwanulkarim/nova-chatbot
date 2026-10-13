@@ -61,7 +61,7 @@ export function AuthModal({ theme }) {
     <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in ${
       isLight ? 'bg-slate-900/30' : 'bg-black/70'
     }`}>
-      <div className={`relative w-full max-w-md rounded-2xl border shadow-2xl p-6 transition-colors ${
+      <div className={`relative w-full max-w-md rounded-2xl border shadow-2xl p-5 sm:p-6 max-h-[90dvh] overflow-y-auto transition-colors ${
         isLight
           ? 'bg-white text-slate-900 border-purple-200/90 shadow-purple-950/10'
           : 'bg-slate-900 border-slate-800 text-slate-100 shadow-2xl'

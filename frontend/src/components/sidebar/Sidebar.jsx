@@ -109,7 +109,12 @@ export function Sidebar({ isOpen, onClose, onOpenSettings, onOpenDocModal, onOpe
     return (
       <div
         key={conv.id}
-        onClick={() => selectConversation(conv.id)}
+        onClick={() => {
+          selectConversation(conv.id);
+          if (typeof window !== 'undefined' && window.innerWidth < 768 && onClose) {
+            onClose();
+          }
+        }}
         className={`group relative flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium cursor-pointer transition-all ${
           isActive
             ? theme === 'lavender-glow'
@@ -226,13 +231,13 @@ export function Sidebar({ isOpen, onClose, onOpenSettings, onOpenDocModal, onOpe
       <aside
         className={`fixed md:static inset-y-0 left-0 z-40 transition-all duration-200 ease-in-out flex flex-col ${
           isOpen
-            ? 'w-72 translate-x-0 opacity-100'
+            ? 'w-72 max-w-[85vw] translate-x-0 opacity-100 shadow-2xl md:shadow-none'
             : '-translate-x-full md:w-0 md:translate-x-0 md:opacity-0 md:overflow-hidden'
         } ${
           theme === 'lavender-glow'
-            ? 'bg-white/70 backdrop-blur-2xl border-r border-purple-200/50 shadow-lg text-slate-800'
+            ? 'bg-white/95 md:bg-white/70 backdrop-blur-2xl border-r border-purple-200/50 text-slate-800'
             : theme === 'lavender-dark'
-            ? 'bg-slate-950/70 backdrop-blur-2xl border-r border-purple-900/30 text-slate-100'
+            ? 'bg-slate-950/95 md:bg-slate-950/70 backdrop-blur-2xl border-r border-purple-900/30 text-slate-100'
             : 'bg-slate-925 border-r border-slate-800/80 text-slate-100'
         }`}
       >
@@ -267,7 +272,12 @@ export function Sidebar({ isOpen, onClose, onOpenSettings, onOpenDocModal, onOpe
         {/* New Chat Button & Search */}
         <div className="p-3 space-y-2.5">
           <button
-            onClick={createNewChat}
+            onClick={() => {
+              createNewChat();
+              if (typeof window !== 'undefined' && window.innerWidth < 768 && onClose) {
+                onClose();
+              }
+            }}
             className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-md shadow-brand-600/20 transition-all"
           >
             <Plus size={16} />
@@ -344,7 +354,12 @@ export function Sidebar({ isOpen, onClose, onOpenSettings, onOpenDocModal, onOpe
           isLight ? 'border-purple-200/50' : 'border-slate-800/60'
         }`}>
           <button
-            onClick={onOpenDocModal}
+            onClick={() => {
+              onOpenDocModal();
+              if (typeof window !== 'undefined' && window.innerWidth < 768 && onClose) {
+                onClose();
+              }
+            }}
             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-colors ${
               isLight
                 ? 'text-slate-700 hover:text-slate-950 hover:bg-purple-100/70'
@@ -355,7 +370,12 @@ export function Sidebar({ isOpen, onClose, onOpenSettings, onOpenDocModal, onOpe
             <span>Document Knowledge Base</span>
           </button>
           <button
-            onClick={onOpenPluginsModal}
+            onClick={() => {
+              onOpenPluginsModal();
+              if (typeof window !== 'undefined' && window.innerWidth < 768 && onClose) {
+                onClose();
+              }
+            }}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors group ${
               isLight
                 ? 'text-slate-700 hover:text-slate-950 hover:bg-purple-100/70'

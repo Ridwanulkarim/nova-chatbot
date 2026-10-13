@@ -81,16 +81,16 @@ export function ChatArea({
     >
       {/* Top Header */}
       <header
-        className={`h-14 border-b px-4 flex items-center justify-between backdrop-blur-md z-10 flex-shrink-0 ${
+        className={`h-14 border-b px-2.5 sm:px-4 flex items-center justify-between backdrop-blur-md z-10 flex-shrink-0 ${
           theme === 'lavender-glow'
             ? 'border-purple-200/40 bg-white/40 text-slate-800'
             : 'border-slate-800/80 bg-slate-950/80 text-slate-100'
         }`}
       >
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             onClick={onToggleSidebar}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
             title="Toggle Sidebar"
           >
             <PanelLeft size={18} />
@@ -98,9 +98,9 @@ export function ChatArea({
 
           {/* Conversation Title (only in active conversation) */}
           {activeConversation && messages.length > 0 && (
-            <div className="truncate">
+            <div className="truncate min-w-0">
               <h1
-                className={`font-semibold text-sm truncate ${
+                className={`font-semibold text-xs sm:text-sm truncate max-w-[100px] xs:max-w-[150px] sm:max-w-xs ${
                   theme === 'lavender-glow' ? 'text-slate-850' : 'text-slate-200'
                 }`}
               >
@@ -111,7 +111,7 @@ export function ChatArea({
         </div>
 
         {/* Top Center Pill Switcher: [ Nova Chat | + Workspace ] */}
-        <div className={`hidden sm:flex items-center rounded-full p-0.5 text-xs shadow-xs border ${
+        <div className={`hidden md:flex items-center rounded-full p-0.5 text-xs shadow-xs border ${
           theme === 'lavender-glow'
             ? 'bg-purple-100/80 border-purple-200'
             : 'bg-[#202123]/80 border-white/10'
@@ -136,8 +136,8 @@ export function ChatArea({
         </div>
 
         {/* Top Controls */}
-        <div className="flex items-center gap-2">
-          {/* Daily Quota Indicator Pill (Always visible) */}
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* Daily Quota Indicator Pill (Responsive) */}
           {(() => {
             const quota = dailyQuota || {
               message_count: 0,
@@ -154,7 +154,7 @@ export function ChatArea({
                   onClick={() => setShowQuotaTooltip((v) => !v)}
                   onMouseEnter={() => setShowQuotaTooltip(true)}
                   onMouseLeave={() => setShowQuotaTooltip(false)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                  className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium border transition-all ${
                     quota.remaining_messages <= 5 || quota.remaining_images <= 2
                       ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
                       : theme === 'lavender-glow'
@@ -163,18 +163,18 @@ export function ChatArea({
                   }`}
                   title="Daily quota: messages and AI images"
                 >
-                  <div className="flex items-center gap-1.5">
-                    <Zap size={13} className="text-amber-500 fill-amber-500/20" />
+                  <div className="flex items-center gap-1">
+                    <Zap size={13} className="text-amber-500 fill-amber-500/20 flex-shrink-0" />
                     <span>
-                      {quota.remaining_messages}/{quota.message_limit} msgs
+                      {quota.remaining_messages}<span className="hidden sm:inline">/{quota.message_limit} msgs</span>
                     </span>
                   </div>
                   <span className={theme === 'lavender-glow' ? 'text-purple-300' : 'text-slate-600'}>|</span>
-                  <div className={`flex items-center gap-1.5 font-semibold ${
+                  <div className={`flex items-center gap-1 font-semibold ${
                     theme === 'lavender-glow' ? 'text-purple-700' : 'text-indigo-300'
                   }`}>
-                    <ImageIcon size={13} className={theme === 'lavender-glow' ? 'text-purple-600' : 'text-indigo-400'} />
-                    <span>{quota.remaining_images}/{quota.image_limit} AI Images</span>
+                    <ImageIcon size={13} className={`${theme === 'lavender-glow' ? 'text-purple-600' : 'text-indigo-400'} flex-shrink-0`} />
+                    <span>{quota.remaining_images}<span className="hidden sm:inline">/{quota.image_limit} AI Images</span></span>
                   </div>
                 </button>
 
@@ -239,8 +239,8 @@ export function ChatArea({
             );
           })()}
 
-          {/* Model Selector (Always populated, never blank) */}
-          <div className="hidden sm:block">
+          {/* Model Selector (Desktop) */}
+          <div className="hidden lg:block">
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
@@ -265,7 +265,7 @@ export function ChatArea({
           {/* Upgrade Button */}
           <button
             onClick={() => setShowQuotaTooltip((v) => !v)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-xs border ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-xs border ${
               theme === 'lavender-glow'
                 ? 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700 hover:text-purple-900'
                 : 'bg-slate-900/90 hover:bg-slate-800 border-slate-700/60 text-sky-400 hover:text-sky-300'
@@ -273,13 +273,13 @@ export function ChatArea({
             title="View Plan & Quota"
           >
             <Sparkles size={13} className={theme === 'lavender-glow' ? 'text-purple-600' : 'text-sky-400'} />
-            <span>Upgrade</span>
+            <span className="hidden sm:inline">Upgrade</span>
           </button>
 
           {/* Live Voice Mode Button */}
           <button
             onClick={onOpenVoiceModal}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all shadow-xs group border ${
+            className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all shadow-xs group border ${
               theme === 'lavender-glow'
                 ? 'bg-purple-100 hover:bg-purple-200 text-purple-900 border-purple-200'
                 : 'bg-gradient-to-r from-brand-600/30 to-indigo-600/30 hover:from-brand-600/50 hover:to-indigo-600/50 border-brand-500/30 text-brand-200'
@@ -290,11 +290,11 @@ export function ChatArea({
             <span className="hidden md:inline">Voice Mode</span>
           </button>
 
-          {/* Share Button */}
+          {/* Share Button (Desktop/Tablet) */}
           {activeConversation && (
             <button
               onClick={onOpenShareModal}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`hidden sm:flex p-2 rounded-lg transition-colors ${
                 theme === 'lavender-glow'
                   ? 'text-slate-600 hover:text-slate-900 hover:bg-purple-100/70'
                   : 'text-slate-400 hover:text-white hover:bg-slate-850'
@@ -305,10 +305,10 @@ export function ChatArea({
             </button>
           )}
 
-          {/* Plugins & Skills Directory Button */}
+          {/* Plugins & Skills Directory Button (Desktop) */}
           <button
             onClick={onOpenPluginsModal}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`hidden md:flex p-2 rounded-lg transition-colors ${
               theme === 'lavender-glow'
                 ? 'text-slate-600 hover:text-slate-900 hover:bg-purple-100/70'
                 : 'text-slate-400 hover:text-white hover:bg-slate-850'
@@ -321,7 +321,7 @@ export function ChatArea({
           {/* Theme Palette Switcher */}
           <button
             onClick={onToggleTheme}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
               theme === 'lavender-glow'
                 ? 'text-slate-600 hover:text-slate-900 hover:bg-purple-100/70'
                 : 'text-slate-400 hover:text-white hover:bg-slate-850'
@@ -334,7 +334,7 @@ export function ChatArea({
           {/* Settings Button */}
           <button
             onClick={onOpenSettings}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
               theme === 'lavender-glow'
                 ? 'text-slate-600 hover:text-slate-900 hover:bg-purple-100/70'
                 : 'text-slate-400 hover:text-white hover:bg-slate-850'

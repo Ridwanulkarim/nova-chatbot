@@ -134,30 +134,44 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
     }`}>
       {/* Top Bar with Title & Bangla Translation Switcher */}
       <div className="flex flex-col sm:flex-row items-center justify-between w-full max-w-4xl mx-auto gap-3 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/25">
-            <Sparkles size={16} className="text-white animate-spin-slow" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className={`font-semibold text-sm tracking-wide ${
-                isLight ? 'text-slate-900' : 'text-white'
-              }`}>
-                Pluto Live Voice
-              </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                Live
-              </span>
+        <div className="flex items-center justify-between w-full sm:w-auto">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-brand-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/25">
+              <Sparkles size={15} className="text-white animate-spin-slow" />
             </div>
-            <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              বাংলা ও ইংরেজি কণ্ঠ সহকারী ও অনুবাদ
-            </p>
+            <div>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className={`font-semibold text-xs sm:text-sm tracking-wide ${
+                  isLight ? 'text-slate-900' : 'text-white'
+                }`}>
+                  Pluto Live Voice
+                </span>
+                <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  Live
+                </span>
+              </div>
+              <p className={`text-[11px] sm:text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                বাংলা ও ইংরেজি কণ্ঠ সহকারী ও অনুবাদ
+              </p>
+            </div>
           </div>
+
+          <button
+            onClick={onClose}
+            className={`sm:hidden p-2 rounded-full border transition-all shadow-md ${
+              isLight
+                ? 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-slate-600 hover:text-slate-900'
+                : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-400 hover:text-white'
+            }`}
+            title="Exit Voice Mode"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* Voice Mode Selector: [ 🇧🇩 বাংলা | 🔄 অনুবাদ (Translate) | 🇺🇸 English ] */}
-        <div className={`flex items-center p-1 rounded-full border text-xs shadow-xs transition-colors ${
+        <div className={`flex items-center p-0.5 sm:p-1 rounded-full border text-[11px] sm:text-xs shadow-xs transition-colors overflow-x-auto max-w-full ${
           isLight
             ? 'bg-purple-50 border-purple-200'
             : 'bg-slate-900/90 border-slate-700/80'
@@ -168,7 +182,7 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
               stopSpeaking();
               if (sessionActive && !isMuted) beginListening();
             }}
-            className={`px-3 py-1.5 rounded-full font-medium transition-all flex items-center gap-1.5 ${
+            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full font-medium transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap ${
               voiceMode === 'bengali'
                 ? isLight
                   ? 'bg-white text-purple-950 shadow-xs font-semibold'
@@ -187,7 +201,7 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
               stopSpeaking();
               if (sessionActive && !isMuted) beginListening();
             }}
-            className={`px-3 py-1.5 rounded-full font-medium transition-all flex items-center gap-1.5 ${
+            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full font-medium transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap ${
               voiceMode === 'translate'
                 ? isLight
                   ? 'bg-white text-purple-950 shadow-xs font-semibold'
@@ -198,7 +212,7 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
             }`}
             title="বাংলা ⇄ English লাইভ কণ্ঠ অনুবাদ"
           >
-            <Languages size={13} />
+            <Languages size={12} className="sm:w-[13px] sm:h-[13px]" />
             <span>🔄 লাইভ অনুবাদ</span>
           </button>
 
@@ -208,7 +222,7 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
               stopSpeaking();
               if (sessionActive && !isMuted) beginListening();
             }}
-            className={`px-3 py-1.5 rounded-full font-medium transition-all flex items-center gap-1.5 ${
+            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full font-medium transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap ${
               voiceMode === 'english'
                 ? isLight
                   ? 'bg-white text-purple-950 shadow-xs font-semibold'
@@ -224,7 +238,7 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
 
         <button
           onClick={onClose}
-          className={`p-2.5 rounded-full border transition-all shadow-md ${
+          className={`hidden sm:flex p-2.5 rounded-full border transition-all shadow-md ${
             isLight
               ? 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-slate-600 hover:text-slate-900'
               : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-400 hover:text-white'
@@ -244,7 +258,7 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
         >
           {/* Outer glowing pulsing rings */}
           <div
-            className={`absolute w-72 h-72 rounded-full blur-3xl transition-all duration-700 pointer-events-none opacity-40 ${
+            className={`absolute w-52 h-52 sm:w-72 sm:h-72 rounded-full blur-2xl sm:blur-3xl transition-all duration-700 pointer-events-none opacity-40 ${
               conversationState === 'listening'
                 ? voiceMode === 'translate' ? 'bg-indigo-500 scale-125 animate-pulse' : 'bg-emerald-500 scale-125 animate-pulse'
                 : conversationState === 'speaking'
@@ -256,7 +270,7 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
           />
 
           <div
-            className={`absolute w-60 h-60 rounded-full border border-brand-500/20 transition-all duration-500 ${
+            className={`absolute w-44 h-44 sm:w-60 sm:h-60 rounded-full border border-brand-500/20 transition-all duration-500 ${
               conversationState === 'listening'
                 ? voiceMode === 'translate' ? 'border-indigo-400/50 scale-110' : 'border-emerald-400/50 scale-110'
                 : conversationState === 'speaking'
@@ -267,7 +281,7 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
 
           {/* Core Orb */}
           <div
-            className={`w-44 h-44 rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 relative overflow-hidden ${
+            className={`w-32 h-32 sm:w-44 sm:h-44 rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 relative overflow-hidden ${
               conversationState === 'listening'
                 ? voiceMode === 'translate'
                   ? 'bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 scale-105 shadow-indigo-500/50 ring-4 ring-indigo-400/30'
@@ -281,39 +295,39 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
           >
             {/* Dynamic Sound Wave Icon inside core */}
             {conversationState === 'listening' && (
-              <div className="flex items-center gap-1.5 h-12">
-                <span className="w-1.5 h-6 bg-white/90 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                <span className="w-1.5 h-12 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
-                <span className="w-1.5 h-8 bg-white/90 rounded-full animate-bounce [animation-delay:-0.4s]" />
-                <span className="w-1.5 h-10 bg-white rounded-full animate-bounce [animation-delay:-0.2s]" />
-                <span className="w-1.5 h-5 bg-white/90 rounded-full animate-bounce" />
+              <div className="flex items-center gap-1.5 h-10 sm:h-12">
+                <span className="w-1.5 h-5 sm:h-6 bg-white/90 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                <span className="w-1.5 h-10 sm:h-12 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
+                <span className="w-1.5 h-7 sm:h-8 bg-white/90 rounded-full animate-bounce [animation-delay:-0.4s]" />
+                <span className="w-1.5 h-8 sm:h-10 bg-white rounded-full animate-bounce [animation-delay:-0.2s]" />
+                <span className="w-1.5 h-4 sm:h-5 bg-white/90 rounded-full animate-bounce" />
               </div>
             )}
 
             {conversationState === 'speaking' && (
-              <div className="flex items-center gap-1.5 h-12">
-                <span className="w-1.5 h-8 bg-white rounded-full animate-bounce [animation-delay:-0.2s]" />
-                <span className="w-1.5 h-12 bg-white rounded-full animate-bounce [animation-delay:-0.35s]" />
-                <span className="w-1.5 h-10 bg-white rounded-full animate-bounce [animation-delay:-0.1s]" />
-                <span className="w-1.5 h-14 bg-white rounded-full animate-bounce [animation-delay:-0.25s]" />
-                <span className="w-1.5 h-7 bg-white rounded-full animate-bounce" />
+              <div className="flex items-center gap-1.5 h-10 sm:h-12">
+                <span className="w-1.5 h-7 sm:h-8 bg-white rounded-full animate-bounce [animation-delay:-0.2s]" />
+                <span className="w-1.5 h-10 sm:h-12 bg-white rounded-full animate-bounce [animation-delay:-0.35s]" />
+                <span className="w-1.5 h-8 sm:h-10 bg-white rounded-full animate-bounce [animation-delay:-0.1s]" />
+                <span className="w-1.5 h-12 sm:h-14 bg-white rounded-full animate-bounce [animation-delay:-0.25s]" />
+                <span className="w-1.5 h-5 sm:h-7 bg-white rounded-full animate-bounce" />
               </div>
             )}
 
             {conversationState === 'thinking' && (
-              <div className="w-10 h-10 border-3 border-white/20 border-t-white rounded-full animate-spin" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 border-3 border-white/20 border-t-white rounded-full animate-spin" />
             )}
 
             {conversationState === 'idle' && (
-              <Mic size={36} className="text-slate-300 group-hover:scale-110 transition-transform" />
+              <Mic size={28} className="sm:w-9 sm:h-9 text-slate-300 group-hover:scale-110 transition-transform" />
             )}
           </div>
         </div>
 
         {/* Live Conversation State Indicator Pill */}
-        <div className="mt-8 flex items-center justify-center">
+        <div className="mt-5 sm:mt-8 flex items-center justify-center px-2">
           <span
-            className={`px-4 py-1.5 rounded-full text-xs font-medium tracking-wide border shadow-md transition-all duration-300 ${
+            className={`px-3 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-medium tracking-wide border shadow-md transition-all duration-300 text-center max-w-[95vw] ${
               conversationState === 'listening'
                 ? voiceMode === 'translate'
                   ? isLight ? 'bg-indigo-50 text-indigo-700 border-indigo-300' : 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30'
@@ -359,21 +373,21 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
         </div>
 
         {/* Live Subtitle / Transcript Area */}
-        <div className={`w-full max-w-xl mt-6 min-h-[90px] px-6 py-4 rounded-2xl border backdrop-blur-md flex flex-col justify-center text-center ${
+        <div className={`w-full max-w-xl mt-4 sm:mt-6 min-h-[72px] sm:min-h-[90px] px-3.5 sm:px-6 py-2.5 sm:py-4 rounded-2xl border backdrop-blur-md flex flex-col justify-center text-center ${
           isLight ? 'bg-white/80 border-purple-200 shadow-lg text-slate-800' : 'bg-slate-900/60 border-slate-800/80 text-slate-100'
         }`}>
           {liveTranscript && (
-            <p className={`text-sm italic font-medium ${isLight ? 'text-purple-700' : 'text-cyan-300'}`}>
+            <p className={`text-xs sm:text-sm italic font-medium ${isLight ? 'text-purple-700' : 'text-cyan-300'}`}>
               &ldquo;{liveTranscript}&rdquo;
             </p>
           )}
           {!liveTranscript && aiSpeechText && conversationState === 'speaking' && (
-            <p className={`text-xs line-clamp-3 leading-relaxed ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+            <p className={`text-[11px] sm:text-xs line-clamp-3 leading-relaxed ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
               {aiSpeechText}
             </p>
           )}
           {!liveTranscript && (!aiSpeechText || conversationState !== 'speaking') && (
-            <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>
+            <p className={`text-[11px] sm:text-xs ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>
               {voiceMode === 'translate'
                 ? 'বাংলা অথবা ইংরেজিতে কথা বলুন, প্লুটো সরাসরি অনুবাদ করে বাংলায়/ইংরেজিতে পড়ে শোনাবে।'
                 : voiceMode === 'bengali'
@@ -385,53 +399,53 @@ export function LiveVoiceModal({ isOpen, onClose, theme }) {
       </div>
 
       {/* Bottom Controls Bar */}
-      <div className="w-full max-w-md mx-auto flex items-center justify-center gap-5 pb-4">
+      <div className="w-full max-w-md mx-auto flex items-center justify-center gap-3.5 sm:gap-5 pb-2 sm:pb-4">
         {/* Mute Button */}
         <button
           onClick={toggleMute}
-          className={`p-4 rounded-full border transition-all duration-200 shadow-lg ${
+          className={`p-3 sm:p-4 rounded-full border transition-all duration-200 shadow-lg ${
             isMuted
               ? isLight ? 'bg-rose-100 text-rose-700 border-rose-300 hover:bg-rose-200' : 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
               : isLight ? 'bg-purple-100 text-purple-900 border-purple-200 hover:bg-purple-200' : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
           }`}
           title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
         >
-          {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
+          {isMuted ? <MicOff size={19} className="sm:w-[22px] sm:h-[22px]" /> : <Mic size={19} className="sm:w-[22px] sm:h-[22px]" />}
         </button>
 
         {/* Interrupt / Stop speaking Button */}
         {conversationState === 'speaking' ? (
           <button
             onClick={handleInterrupt}
-            className={`p-4 rounded-full border transition-all shadow-lg flex items-center gap-2 ${
+            className={`p-3 sm:p-4 rounded-full border transition-all shadow-lg flex items-center gap-2 ${
               isLight ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200' : 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
             }`}
             title="Interrupt AI"
           >
-            <VolumeX size={22} />
+            <VolumeX size={19} className="sm:w-[22px] sm:h-[22px]" />
           </button>
         ) : (
           <button
             onClick={beginListening}
             disabled={conversationState === 'listening' || isMuted}
-            className={`p-4 rounded-full border transition-all shadow-lg ${
+            className={`p-3 sm:p-4 rounded-full border transition-all shadow-lg ${
               conversationState === 'listening'
                 ? isLight ? 'bg-cyan-100 text-cyan-800 border-cyan-300' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
                 : isLight ? 'bg-purple-100 text-purple-900 border-purple-200 hover:bg-purple-200' : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
             }`}
             title="Listen now"
           >
-            <Volume2 size={22} />
+            <Volume2 size={19} className="sm:w-[22px] sm:h-[22px]" />
           </button>
         )}
 
         {/* End Voice Session Button */}
         <button
           onClick={onClose}
-          className="p-4 rounded-full bg-rose-600 hover:bg-rose-700 text-white border border-rose-500 shadow-xl transition-transform hover:scale-105"
+          className="p-3 sm:p-4 rounded-full bg-rose-600 hover:bg-rose-700 text-white border border-rose-500 shadow-xl transition-transform hover:scale-105"
           title="End Voice Call"
         >
-          <PhoneOff size={22} />
+          <PhoneOff size={19} className="sm:w-[22px] sm:h-[22px]" />
         </button>
       </div>
     </div>

@@ -234,7 +234,7 @@ export function PluginsModal({ isOpen, onClose, theme }) {
     <div className={`fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-200 ${
       isLight ? 'bg-slate-900/30' : 'bg-black/75'
     }`}>
-      <div className={`w-full max-w-4xl h-[92vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden relative transition-colors ${
+      <div className={`w-full max-w-4xl h-[92vh] h-[92dvh] max-h-[92dvh] flex flex-col rounded-2xl sm:rounded-3xl border shadow-2xl overflow-hidden relative transition-colors ${
         isLight
           ? 'bg-white text-slate-900 border-purple-200/90 shadow-purple-950/10'
           : theme === 'lavender-dark'
@@ -242,7 +242,7 @@ export function PluginsModal({ isOpen, onClose, theme }) {
           : 'bg-slate-900/95 backdrop-blur-2xl text-slate-100 border-slate-700/80 shadow-2xl'
       }`}>
         {/* Top Header with Segmented Pill & Close Button */}
-        <div className={`pt-4 px-6 flex items-center justify-between border-b pb-3 flex-shrink-0 ${
+        <div className={`pt-3 sm:pt-4 px-3 sm:px-6 flex items-center justify-between border-b pb-3 flex-shrink-0 ${
           isLight ? 'border-purple-100 bg-white/70' : 'border-slate-800/80 bg-slate-900/80'
         }`}>
           <div className="w-8" /> {/* Spacer */}
@@ -295,7 +295,7 @@ export function PluginsModal({ isOpen, onClose, theme }) {
         </div>
 
         {/* Scrollable Main Area */}
-        <div className="flex-1 overflow-y-auto px-6 sm:px-12 py-6 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto px-3.5 sm:px-12 py-4 sm:py-6 custom-scrollbar">
           {/* Main Title & Subtitle */}
           <div className="mb-6">
             <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight mb-1.5 ${

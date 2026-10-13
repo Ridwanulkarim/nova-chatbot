@@ -170,20 +170,20 @@ export function WelcomeScreen({
       onDrop={handleDrop}
       onPaste={handlePaste}
       tabIndex={0}
-      className="flex-1 flex flex-col items-center justify-center px-4 w-full max-w-3xl mx-auto my-auto relative select-none focus:outline-none"
+      className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 w-full max-w-3xl mx-auto my-auto relative select-none focus:outline-none py-6 sm:py-0 overflow-y-auto"
     >
       {/* Drag & Drop Visual Overlay */}
       {isDragging && (
-        <div className="absolute inset-0 z-50 bg-slate-950/85 border-2 border-dashed border-purple-400 rounded-3xl flex flex-col items-center justify-center backdrop-blur-md">
-          <UploadCloud size={44} className="text-purple-400 animate-bounce mb-2" />
-          <p className="text-base font-semibold text-white">Drop your image, screenshot, or document</p>
+        <div className="absolute inset-0 z-50 bg-slate-950/85 border-2 border-dashed border-purple-400 rounded-3xl flex flex-col items-center justify-center backdrop-blur-md p-4 text-center">
+          <UploadCloud size={40} className="text-purple-400 animate-bounce mb-2" />
+          <p className="text-sm sm:text-base font-semibold text-white">Drop your image, screenshot, or document</p>
           <p className="text-xs text-purple-300">Pluto AI will visually analyze and inspect it</p>
         </div>
       )}
 
       {/* 1. Personalized Greeting (matching screenshot style) */}
       <h1
-        className={`text-2xl sm:text-3xl font-medium tracking-tight mb-7 text-center transition-colors ${
+        className={`text-xl sm:text-3xl font-medium tracking-tight mb-4 sm:mb-7 text-center transition-colors ${
           isLight ? 'text-slate-900' : 'text-slate-100'
         }`}
       >
@@ -194,17 +194,17 @@ export function WelcomeScreen({
       <div className="w-full max-w-2xl relative">
         {/* Attached files preview chips above input */}
         {attachedFiles.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-2 px-2">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-2 px-2">
             {attachedFiles.map((f, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/90 border border-slate-700 text-xs text-slate-200"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-slate-800/90 border border-slate-700 text-xs text-slate-200"
               >
                 <Paperclip size={12} className="text-purple-400" />
-                <span className="truncate max-w-[140px]">{f.filename}</span>
+                <span className="truncate max-w-[120px] sm:max-w-[140px] text-[11px] sm:text-xs">{f.filename}</span>
                 <button
                   onClick={() => setAttachedFiles((prev) => prev.filter((_, i) => i !== idx))}
-                  className="p-0.5 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white ml-1"
+                  className="p-0.5 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white ml-0.5"
                 >
                   <X size={11} />
                 </button>
@@ -214,7 +214,7 @@ export function WelcomeScreen({
         )}
 
         <div
-          className={`relative rounded-full transition-all shadow-xl flex items-center px-3 sm:px-4 py-2.5 sm:py-3 gap-2 border ${
+          className={`relative rounded-full transition-all shadow-xl flex items-center px-2.5 sm:px-4 py-2 sm:py-3 gap-1.5 sm:gap-2 border ${
             isLight
               ? 'bg-white/80 border-purple-200/80 shadow-purple-900/5 focus-within:border-purple-400/80 focus-within:ring-2 focus-within:ring-purple-300/30'
               : 'bg-[#202123] hover:bg-[#25262a] focus-within:bg-[#25262a] border-white/10 hover:border-white/15 focus-within:border-white/20'

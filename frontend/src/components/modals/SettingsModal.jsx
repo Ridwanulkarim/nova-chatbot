@@ -78,7 +78,7 @@ export function SettingsModal({ isOpen, onClose, theme }) {
     <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm ${
       isLight ? 'bg-slate-900/30' : 'bg-black/70'
     }`}>
-      <div className={`relative w-full max-w-xl rounded-2xl border shadow-2xl p-6 flex flex-col max-h-[85vh] transition-colors ${
+      <div className={`relative w-full max-w-xl rounded-2xl border shadow-2xl p-4 sm:p-6 flex flex-col max-h-[90dvh] transition-colors ${
         isLight
           ? 'bg-white text-slate-900 border-purple-200/90 shadow-purple-950/10'
           : 'bg-slate-900 border-slate-800 text-slate-100 shadow-2xl'

@@ -45,7 +45,7 @@ function MainLayout() {
 
   return (
     <div
-      className={`flex h-screen w-screen overflow-hidden font-sans transition-all duration-300 ${
+      className={`flex h-screen h-[100dvh] max-h-[100dvh] w-screen overflow-hidden font-sans transition-all duration-300 ${
         theme === 'lavender-glow'
           ? 'theme-lavender text-slate-900'
           : theme === 'lavender-dark'
