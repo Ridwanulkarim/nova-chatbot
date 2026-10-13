@@ -196,13 +196,41 @@ class GeminiProvider(BaseAIProvider):
         start_time = time.time()
 
         def sync_fetch():
-            try:
-                with urllib.request.urlopen(req, timeout=40) as resp:
-                    for line in resp:
-                        decoded = line.decode("utf-8").strip()
-                        if decoded.startswith("data: "):
-                            try:
-                                chunk = json.loads(decoded[6:])
+            max_retries = 2
+            for attempt in range(max_retries + 1):
+                try:
+                    with urllib.request.urlopen(req, timeout=40) as resp:
+                        for line in resp:
+                            decoded = line.decode("utf-8").strip()
+                            if decoded.startswith("data: "):
+                                try:
+                                    chunk = json.loads(decoded[6:])
+                                except Exception as json_err:
+                                    logger.warning(f"Failed parsing Gemini SSE chunk: {json_err} | raw: {decoded[:150]}")
+                                    continue
+
+                                # Detect top-level error in stream chunk
+                                if "error" in chunk:
+                                    err_obj = chunk.get("error", {})
+                                    err_code = err_obj.get("code", "UNKNOWN")
+                                    err_message = err_obj.get("message", "Error chunk returned by Gemini")
+                                    logger.error(f"Gemini SSE error chunk ({err_code}): {err_message}")
+                                    asyncio.run_coroutine_threadsafe(
+                                        queue.put(f"\n\n⚠️ **Gemini API Error ({err_code})**: {err_message}"),
+                                        loop
+                                    )
+                                    continue
+
+                                # Detect promptFeedback blocks (e.g. SAFETY, BLOCKLIST)
+                                prompt_feedback = chunk.get("promptFeedback", {})
+                                block_reason = prompt_feedback.get("blockReason")
+                                if block_reason:
+                                    logger.warning(f"Gemini promptFeedback blockReason: {block_reason}")
+                                    asyncio.run_coroutine_threadsafe(
+                                        queue.put(f"\n\n*(Content blocked by Gemini safety filter: {block_reason})*"),
+                                        loop
+                                    )
+
                                 cands = chunk.get("candidates", [])
                                 if cands:
                                     cand = cands[0]
@@ -218,17 +246,20 @@ class GeminiProvider(BaseAIProvider):
                                                 queue.put("\n\n*(Note: Output was modified according to safety guidelines)*"),
                                                 loop
                                             )
-                            except Exception:
-                                continue
-                elapsed = time.time() - start_time
-                logger.info(f"Gemini streaming completed successfully in {elapsed:.2f}s")
-            except urllib.error.HTTPError as e:
-                err_body = ""
-                try:
-                    err_body = e.read().decode("utf-8", errors="replace")
-                except Exception:
-                    pass
-                logger.error(f"Gemini HTTPError {e.code}: {err_body}")
+                    elapsed = time.time() - start_time
+                    logger.info(f"Gemini streaming completed successfully in {elapsed:.2f}s")
+                    return
+                except urllib.error.HTTPError as e:
+                    if e.code in (503, 429) and attempt < max_retries:
+                        logger.warning(f"Gemini temporary error {e.code}. Retrying attempt {attempt + 1}/{max_retries} after 1.5s...")
+                        time.sleep(1.5)
+                        continue
+                    err_body = ""
+                    try:
+                        err_body = e.read().decode("utf-8", errors="replace")
+                    except Exception:
+                        pass
+                    logger.error(f"Gemini HTTPError {e.code}: {err_body}")
 
                 err_msg = f"Gemini API returned error {e.code}"
                 try:

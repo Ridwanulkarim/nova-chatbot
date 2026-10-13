@@ -355,8 +355,12 @@ export function ChatProvider({ children }) {
   };
 
   // Send a message
-  const sendMessage = async (content, customAttachments = null) => {
-    if (!content.trim() || isStreaming) return;
+  const sendMessage = async (content = '', customAttachments = null) => {
+    const hasPendingAttachments =
+      (customAttachments?.length ?? 0) > 0 ||
+      attachedFiles.length > 0;
+
+    if ((!content?.trim() && !hasPendingAttachments) || isStreaming) return;
 
     if (!isAuthenticated) {
       setIsAuthModalOpen(true);
@@ -413,12 +417,19 @@ export function ChatProvider({ children }) {
       modelToUse = 'gemini-3.5-flash';
     }
 
+    const trimmedContent = (content || '').trim();
+    const effectiveContent = trimmedContent || (
+      hasImages
+        ? 'Please analyze this attached image thoroughly and solve any questions or explain all visible details.'
+        : 'Please review and summarize the attached document.'
+    );
+
     // Add optimistic user message to local state
     const optimisticUserMsg = {
       id: `temp-user-${Date.now()}`,
       conversation_id: currentConv.id,
       role: 'user',
-      content,
+      content: effectiveContent,
       attachments: finalAttachments ? JSON.stringify(finalAttachments) : null,
       created_at: new Date().toISOString(),
     };
@@ -449,7 +460,7 @@ export function ChatProvider({ children }) {
 
     await streamMessage({
       conversationId: currentConv.id,
-      content,
+      content: effectiveContent,
       model: modelToUse,
       webSearch: webSearchEnabled,
       fileIds: fileIds && fileIds.length > 0 ? fileIds : null,
