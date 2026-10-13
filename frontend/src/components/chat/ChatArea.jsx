@@ -101,15 +101,11 @@ export function ChatArea({
           {/* New Chat Button - Always Visible & Clickable on Mobile & Desktop */}
           <button
             onClick={createNewChat}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex-shrink-0 shadow-xs border ${
-              theme === 'lavender-glow'
-                ? 'bg-purple-100 hover:bg-purple-200 text-purple-950 border-purple-200 shadow-purple-900/5'
-                : 'bg-slate-900 hover:bg-slate-800 text-slate-100 hover:text-white border-slate-700/80'
-            }`}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs shadow-md shadow-brand-600/25 transition-all flex-shrink-0 cursor-pointer"
             title="Start New Chat"
           >
-            <SquarePen size={14} className={theme === 'lavender-glow' ? 'text-purple-700' : 'text-brand-400'} />
-            <span className="text-xs">New Chat</span>
+            <SquarePen size={14} />
+            <span>New Chat</span>
           </button>
 
           {/* Conversation Title (if inside conversation with messages) */}
@@ -196,7 +192,12 @@ export function ChatArea({
 
                 {/* Quota Popover Dropdown */}
                 {showQuotaTooltip && (
-                  <div className={`absolute right-0 top-full mt-2 w-72 p-3.5 rounded-2xl shadow-2xl backdrop-blur-xl z-50 text-xs border ${
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowQuotaTooltip(false)}
+                    />
+                    <div className={`absolute right-0 top-full mt-2 w-72 p-3.5 rounded-2xl shadow-2xl backdrop-blur-xl z-50 text-xs border ${
                     theme === 'lavender-glow'
                       ? 'bg-white/95 border-purple-200 text-slate-800 shadow-purple-950/10'
                       : 'bg-slate-900/95 border-slate-700 text-slate-200'
@@ -250,7 +251,8 @@ export function ChatArea({
                       Free quota renews daily at midnight UTC.
                     </p>
                   </div>
-                )}
+                </>
+              )}
               </div>
             );
           })()}
@@ -290,6 +292,15 @@ export function ChatArea({
           >
             <Sparkles size={13} className={theme === 'lavender-glow' ? 'text-purple-600' : 'text-sky-400'} />
             <span>Upgrade</span>
+          </button>
+
+          {/* Mobile Quick New Chat Button */}
+          <button
+            onClick={createNewChat}
+            className="flex sm:hidden items-center justify-center p-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/30 transition-transform active:scale-95 flex-shrink-0"
+            title="Start New Chat"
+          >
+            <SquarePen size={15} />
           </button>
 
           {/* Live Voice Mode Button */}
