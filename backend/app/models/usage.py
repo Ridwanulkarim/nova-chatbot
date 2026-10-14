@@ -1,11 +1,14 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.database.session import Base
 
 def generate_uuid() -> str:
     return str(uuid.uuid4())
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 class UserDailyUsage(Base):
     __tablename__ = "user_daily_usages"
@@ -15,8 +18,8 @@ class UserDailyUsage(Base):
     usage_date = Column(String(10), nullable=False, index=True) # YYYY-MM-DD
     message_count = Column(Integer, default=0, nullable=False)
     image_count = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     __table_args__ = (
         UniqueConstraint("user_id", "usage_date", name="uix_user_date_usage"),

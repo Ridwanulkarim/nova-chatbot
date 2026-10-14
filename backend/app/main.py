@@ -28,21 +28,51 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Mount uploads static directory if directory exists
-if os.path.exists(settings.UPLOAD_DIR):
-    try:
-        app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
-    except Exception:
-        pass
-
-# CORS Middleware - Permissive for dev, LAN, Vercel, and cloud origins
+# CORS Middleware - Restrict strictly to configured CORS origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=".*",
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Secure file serving for uploads preventing stored XSS
+@app.get("/uploads/{file_name:path}")
+async def serve_upload(file_name: str):
+    clean_name = os.path.basename(file_name)
+    file_path = os.path.join(settings.UPLOAD_DIR, clean_name)
+    if not os.path.exists(file_path):
+        import tempfile
+        tmp_path = os.path.join(tempfile.gettempdir(), clean_name)
+        if os.path.exists(tmp_path):
+            file_path = tmp_path
+        else:
+            return JSONResponse(status_code=404, content={"detail": "File not found"})
+
+    ext = os.path.splitext(clean_name)[1].lower()
+    # Explicitly block HTML, HTM, SVG, and script execution in browser origin
+    disallowed_inline = {".html", ".htm", ".svg", ".xhtml", ".js", ".mjs", ".exe", ".sh", ".bat", ".php"}
+    if ext in disallowed_inline:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Access restricted: potentially executable file types cannot be served."}
+        )
+
+    import mimetypes
+    mime, _ = mimetypes.guess_type(file_path)
+    if not mime:
+        mime = "application/octet-stream"
+
+    is_safe_image = ext in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".ico"}
+    headers = {
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    }
+    if not is_safe_image:
+        headers["Content-Disposition"] = f'attachment; filename="{clean_name}"'
+
+    return FileResponse(file_path, media_type=mime, headers=headers)
 
 # Mount API routes with all prefixes for seamless reverse proxy / Vercel compatibility
 app.include_router(api_router, prefix="/api/v1")

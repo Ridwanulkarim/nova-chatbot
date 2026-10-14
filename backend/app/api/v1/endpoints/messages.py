@@ -23,6 +23,20 @@ from app.core.config import settings
 
 router = APIRouter()
 
+from datetime import datetime, timezone
+from sqlalchemy import desc
+from app.models.memory import UserMemory
+from app.core.quota import (
+    check_and_consume_message_quota,
+    check_and_consume_image_quota,
+    refund_message_quota,
+    refund_image_quota
+)
+from app.ai.orchestrator import tool_orchestrator
+from app.ai.image_service import image_service
+from app.ai.vision_service import vision_service
+from app.ai.math_service import math_service
+
 @router.get("/{conversation_id}/messages", response_model=List[MessageOut])
 def get_messages(
     conversation_id: str,
@@ -34,18 +48,11 @@ def get_messages(
         Conversation.user_id == current_user.id
     ).first()
     if not conv:
-        conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-        if conv:
-            conv.user_id = current_user.id
-            db.commit()
-    if not conv:
-        return []
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found"
+        )
     return conv.messages
-
-from app.core.quota import check_and_consume_message_quota, check_and_consume_image_quota
-from app.ai.image_service import image_service
-from app.ai.vision_service import vision_service
-from app.ai.math_service import math_service
 
 @router.post("/{conversation_id}/messages/stream")
 async def stream_message(
@@ -53,13 +60,41 @@ async def stream_message(
     msg_in: MessageCreate,
     current_user: User = Depends(get_current_user)
 ):
+    # Detect natural language image generation intent first to avoid double quota deduction
+    clean_low = msg_in.content.strip().lower()
+    image_prefixes = [
+        "/image",
+        "generate an image of",
+        "generate a picture of",
+        "generate an image",
+        "generate a picture",
+        "create an image of",
+        "create a picture of",
+        "create an image",
+        "create a picture",
+        "draw a picture of",
+        "draw an image of",
+        "draw a picture",
+        "draw an image",
+        "make an image of",
+        "make a picture of",
+        "make an image",
+        "make a picture"
+    ]
+    is_img_prompt = (
+        any(clean_low.startswith(pfx) for pfx in image_prefixes)
+        or any(kw in clean_low for kw in ["generate an image of", "generate a picture of", "create an image of", "create a picture of"])
+    )
+
     db = SessionLocal()
     try:
         conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
         if conv:
             if conv.user_id != current_user.id:
-                conv.user_id = current_user.id
-                db.commit()
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Conversation not found"
+                )
         else:
             default_mod = settings.DEFAULT_MODEL
             try:
@@ -77,8 +112,11 @@ async def stream_message(
             db.commit()
             db.refresh(conv)
 
-        # Check and consume daily message quota
-        check_and_consume_message_quota(db, current_user.id)
+        # Consume quota according to request type (do not double-deduct)
+        if is_img_prompt:
+            check_and_consume_image_quota(db, current_user.id)
+        else:
+            check_and_consume_message_quota(db, current_user.id)
         
         # Save user message immediately to database with attachments
         attachments_json = json.dumps(msg_in.attachments) if msg_in.attachments else None
@@ -86,10 +124,11 @@ async def stream_message(
             conversation_id=conv.id,
             role="user",
             content=msg_in.content,
-            attachments=attachments_json
+            attachments=attachments_json,
+            created_at=datetime.now(timezone.utc)
         )
         db.add(user_message)
-        conv.updated_at = datetime.utcnow()
+        conv.updated_at = datetime.now(timezone.utc)
         
         # Auto-update title if it's the first message
         updated_title = None
@@ -104,31 +143,31 @@ async def stream_message(
         # Build context history from prior messages (sliding window of last 12 messages)
         history = db.query(Message).filter(
             Message.conversation_id == conv.id
-        ).order_by(Message.created_at.asc()).all()
+        ).order_by(desc(Message.created_at)).limit(12).all()
+        history.reverse()
 
         model_name = msg_in.model or conv.model
         temp = 0.7
         sys_instructions = ""
+        memory_items = []
         try:
             if current_user and getattr(current_user, "settings", None):
-                temp = current_user.settings.temperature or 0.7
+                # Preserve 0.0 temperature properly
+                if current_user.settings.temperature is not None:
+                    temp = current_user.settings.temperature
                 sys_instructions = current_user.settings.system_instructions or ""
+                if current_user.settings.memory_enabled:
+                    mems = db.query(UserMemory).filter(UserMemory.user_id == current_user.id).all()
+                    memory_items = [m.content for m in mems if m.content]
         except Exception:
             pass
     finally:
         db.close()
 
-    # Detect natural language image generation intent
-    clean_low = msg_in.content.strip().lower()
-    is_img_prompt = (
-        clean_low.startswith(("/image", "generate an image", "create an image", "draw an image", "draw a picture", "make an image"))
-        or "generate an image of" in clean_low
-        or "create a picture of" in clean_low
-    )
     if is_img_prompt:
         # Extract prompt
         img_prompt = msg_in.content
-        for prefix in ["/image", "generate an image of", "generate an image", "create an image of", "create an image", "draw a picture of", "draw an image of", "make an image of"]:
+        for prefix in sorted(image_prefixes, key=len, reverse=True):
             if clean_low.startswith(prefix):
                 img_prompt = msg_in.content[len(prefix):].strip(" :,-")
                 break
@@ -137,13 +176,6 @@ async def stream_message(
 
         async def sse_image_stream():
             try:
-                # Check and consume image quota
-                db_quota = SessionLocal()
-                try:
-                    check_and_consume_image_quota(db_quota, current_user.id)
-                finally:
-                    db_quota.close()
-
                 init_msg = json.dumps({'token': '🎨 Generating photorealistic image with AI...\n\n'})
                 yield f"data: {init_msg}\n\n"
                 img_result = await image_service.generate_image(prompt=img_prompt)
@@ -157,8 +189,9 @@ async def stream_message(
                     asst_msg = Message(
                         conversation_id=conversation_id,
                         role="assistant",
-                        content=f"![{img_prompt}]({img_result['url']})\n\n**Prompt:** *{img_prompt}*\n\n[📥 Download Image]({img_result['url']})",
-                        model="flux-image-generator"
+                        content=image_card,
+                        model="flux-image-generator",
+                        created_at=datetime.now(timezone.utc)
                     )
                     db_save.add(asst_msg)
                     db_save.commit()
@@ -167,6 +200,12 @@ async def stream_message(
                 finally:
                     db_save.close()
             except Exception as e:
+                # Refund image quota on failure
+                db_ref = SessionLocal()
+                try:
+                    refund_image_quota(db_ref, current_user.id)
+                finally:
+                    db_ref.close()
                 yield f"data: {json.dumps({'error': f'Image generation failed: {str(e)}'})}\n\n"
 
         return StreamingResponse(
@@ -175,10 +214,16 @@ async def stream_message(
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
         )
 
-    # Perform optional Web Search
+    # Perform optional Web Search (explicit flag OR enabled in UserSettings with search-intent query)
+    should_search = bool(msg_in.web_search)
+    if not should_search and current_user and getattr(current_user, "settings", None) and current_user.settings.web_search_enabled:
+        intent = tool_orchestrator.analyze_intent(msg_in.content, has_attachments=bool(msg_in.attachments))
+        if intent.get("route") == "WEB_SEARCH":
+            should_search = True
+
     search_context = ""
     citations_data = []
-    if msg_in.web_search:
+    if should_search:
         results = await search_service.search(msg_in.content)
         if results:
             search_context = search_service.format_search_context(results)
@@ -313,6 +358,8 @@ async def stream_message(
     )
     if sys_instructions:
         base_system += f"\n\nUser Custom Instructions:\n{sys_instructions}"
+    if memory_items:
+        base_system += "\n\nRemembered User Information & Preferences (Memory):\n" + "\n".join(f"- {m}" for m in memory_items)
     if conv.system_prompt:
         base_system += f"\n\nConversation Directives:\n{conv.system_prompt}"
 
@@ -426,6 +473,8 @@ async def stream_message(
     # Generator for SSE Streaming
     async def sse_event_stream():
         full_assistant_reply = []
+        client_cancelled = False
+        stream_error = None
         try:
             async for token in provider.stream_chat(
                 messages=llm_messages,
@@ -436,42 +485,54 @@ async def stream_message(
                 yield f"data: {json.dumps({'token': token})}\n\n"
 
         except asyncio.CancelledError:
-            # Client disconnected early or pressed Stop
-            pass
+            client_cancelled = True
+            # Generator is closing: do not yield any further tokens
         except Exception as stream_err:
-            err_msg = f"\n\n**Error**: An unexpected error occurred while processing the response: {str(stream_err)}"
-            full_assistant_reply.append(err_msg)
-            yield f"data: {json.dumps({'token': err_msg})}\n\n"
+            stream_error = str(stream_err)
+            err_msg = f"⚠️ An error occurred while generating the response: {stream_error}"
+            yield f"data: {json.dumps({'error': err_msg})}\n\n"
         finally:
-            # Safely persist assistant message to DB
-            final_content = "".join(full_assistant_reply).strip()
-            if not final_content:
-                final_content = "⚠️ The AI vision model did not return a response. Please try again with a clearer image or prompt."
-                yield f"data: {json.dumps({'token': final_content})}\n\n"
-
-            db_save = SessionLocal()
-            try:
-                assistant_msg = Message(
-                    conversation_id=conversation_id,
-                    role="assistant",
-                    content=final_content,
-                    model=resolved_model,
-                    citations=json.dumps(citations_data) if citations_data else None
-                )
-                db_save.add(assistant_msg)
-                db_save.commit()
-                db_save.refresh(assistant_msg)
-                done_payload = {
-                    "done": True,
-                    "message_id": assistant_msg.id,
-                    "title": updated_title,
-                    "citations": citations_data
-                }
-                yield f"data: {json.dumps(done_payload)}\n\n"
-            except Exception as save_err:
-                db_save.rollback()
-            finally:
-                db_save.close()
+            if not client_cancelled:
+                final_content = "".join(full_assistant_reply).strip()
+                if stream_error:
+                    # Refund message quota on generation failure
+                    db_ref = SessionLocal()
+                    try:
+                        refund_message_quota(db_ref, current_user.id)
+                    finally:
+                        db_ref.close()
+                elif final_content and not final_content.startswith("**Error**"):
+                    db_save = SessionLocal()
+                    try:
+                        assistant_msg = Message(
+                            conversation_id=conversation_id,
+                            role="assistant",
+                            content=final_content,
+                            model=resolved_model,
+                            citations=json.dumps(citations_data) if citations_data else None,
+                            created_at=datetime.now(timezone.utc)
+                        )
+                        db_save.add(assistant_msg)
+                        db_save.commit()
+                        db_save.refresh(assistant_msg)
+                        done_payload = {
+                            "done": True,
+                            "message_id": assistant_msg.id,
+                            "title": updated_title,
+                            "citations": citations_data
+                        }
+                        yield f"data: {json.dumps(done_payload)}\n\n"
+                    except Exception:
+                        db_save.rollback()
+                    finally:
+                        db_save.close()
+                else:
+                    # No content generated - refund quota
+                    db_ref = SessionLocal()
+                    try:
+                        refund_message_quota(db_ref, current_user.id)
+                    finally:
+                        db_ref.close()
 
     return StreamingResponse(
         sse_event_stream(),
@@ -495,9 +556,11 @@ def set_message_feedback(
         Conversation.user_id == current_user.id
     ).first()
     if not msg:
-        msg = db.query(Message).filter(Message.id == message_id).first()
-    if msg:
-        msg.feedback = feedback_in.feedback
-        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Message not found"
+        )
+    msg.feedback = feedback_in.feedback
+    db.commit()
     return {"message": "Feedback recorded", "feedback": feedback_in.feedback}
 

@@ -10,6 +10,8 @@ def get_env_file():
     candidates = [
         PROJECT_ROOT / ".env",
         BASE_DIR / ".env",
+        PROJECT_ROOT / "pluto_ai.env",
+        BASE_DIR / "pluto_ai.env",
         PROJECT_ROOT / "nova_ai.env",
         BASE_DIR / "nova_ai.env"
     ]
@@ -47,15 +49,15 @@ def get_default_upload_dir() -> str:
 
 def get_default_database_url() -> str:
     if is_running_on_vercel():
-        return "sqlite:////tmp/nova_ai.db"
+        return "sqlite:////tmp/pluto_ai.db"
     try:
         test_file = "./.write_test_db"
         with open(test_file, "w") as f:
             f.write("1")
         os.remove(test_file)
-        return "sqlite:///./nova_ai.db"
+        return "sqlite:///./pluto_ai.db"
     except Exception:
-        return "sqlite:////tmp/nova_ai.db"
+        return "sqlite:////tmp/pluto_ai.db"
 
 
 def _clean_key(val: Optional[str]) -> Optional[str]:
@@ -73,6 +75,8 @@ def _read_env_val(key_name: str) -> Optional[str]:
         ENV_PATH,
         PROJECT_ROOT / ".env",
         BASE_DIR / ".env",
+        PROJECT_ROOT / "pluto_ai.env",
+        BASE_DIR / "pluto_ai.env",
         PROJECT_ROOT / "nova_ai.env",
         BASE_DIR / "nova_ai.env",
     ]
@@ -97,7 +101,7 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     DEBUG: bool = True
     
-    SECRET_KEY: str = "nova_ai_default_secret_key_change_in_production"
+    SECRET_KEY: str = "pluto_ai_default_secret_key_change_in_production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     
     DATABASE_URL: str = get_default_database_url()
@@ -129,21 +133,10 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-def _default_gemini_key() -> str:
-    p1 = "AQ.Ab8RN6I7Js"
-    p2 = "RQaDhHojI2U77"
-    p3 = "jgH9c23kU-mB_"
-    p4 = "9LjhQm1vt9YLEw"
-    return f"{p1}{p2}{p3}{p4}"
-
 # Post-process keys to eliminate any environment variable placeholder poisoning
 settings.OPENAI_API_KEY = _clean_key(settings.OPENAI_API_KEY) or _read_env_val("OPENAI_API_KEY")
 settings.GROQ_API_KEY = _clean_key(settings.GROQ_API_KEY) or _read_env_val("GROQ_API_KEY")
-settings.GEMINI_API_KEY = (
-    _clean_key(settings.GEMINI_API_KEY)
-    or _read_env_val("GEMINI_API_KEY")
-    or _default_gemini_key()
-)
+settings.GEMINI_API_KEY = _clean_key(settings.GEMINI_API_KEY) or _read_env_val("GEMINI_API_KEY")
 
 if not settings.GEMINI_API_KEY and settings.GROQ_API_KEY:
     settings.DEFAULT_MODEL = "openai/gpt-oss-120b"

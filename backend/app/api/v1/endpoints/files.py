@@ -1,9 +1,10 @@
 import os
+import re
 import shutil
 import uuid
 import base64
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
@@ -18,10 +19,11 @@ from app.ai.vision_service import vision_service
 
 router = APIRouter()
 
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".bmp", ".heic", ".heif", ".tiff", ".tif", ".jfif", ".ico", ".avif"}
-DOC_EXTENSIONS = {".txt", ".md", ".csv", ".json", ".py", ".js", ".html", ".pdf", ".docx", ".yaml", ".yml", ".sh", ".sql", ".ts", ".tsx"}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".heic", ".heif", ".tiff", ".tif", ".jfif", ".ico", ".avif"}
+DOC_EXTENSIONS = {".txt", ".md", ".csv", ".json", ".py", ".pdf", ".docx", ".yaml", ".yml", ".sql"}
 VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".mkv", ".avi"}
 AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg"}
+DISALLOWED_EXTENSIONS = {".html", ".htm", ".svg", ".xhtml", ".js", ".mjs", ".sh", ".bat", ".exe", ".php"}
 ALLOWED_EXTENSIONS = IMAGE_EXTENSIONS | DOC_EXTENSIONS | VIDEO_EXTENSIONS | AUDIO_EXTENSIONS
 
 def detect_media_type(ext: str) -> str:
@@ -61,12 +63,25 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    filename = file.filename or "uploaded_file"
-    ext = os.path.splitext(filename)[1].lower()
+    raw_filename = file.filename or "uploaded_file"
+    # Sanitize filename against directory traversal and null-byte injection
+    clean_filename = os.path.basename(raw_filename).replace("\x00", "").strip()
+    clean_filename = re.sub(r'[/\\:\0]', '_', clean_filename)
+    if not clean_filename or clean_filename in [".", ".."]:
+        clean_filename = "uploaded_file"
+
+    ext = os.path.splitext(clean_filename)[1].lower()
+    if ext in DISALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="HTML, SVG, and executable script uploads are restricted for security reasons."
+        )
+
     if ext not in ALLOWED_EXTENSIONS:
         # If no extension or unknown image type, check content_type
         if file.content_type and file.content_type.startswith("image/"):
             ext = ".png"
+            clean_filename = f"{clean_filename}.png"
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -79,7 +94,7 @@ async def upload_document(
     except Exception:
         pass
 
-    stored_name = f"{uuid.uuid4().hex}_{filename}"
+    stored_name = f"{uuid.uuid4().hex}_{clean_filename}"
     file_path = os.path.join(settings.UPLOAD_DIR, stored_name)
 
     # Read content bytes
@@ -91,17 +106,29 @@ async def upload_document(
             detail=f"File exceeds maximum allowed size of {settings.MAX_UPLOAD_SIZE_MB}MB"
         )
 
-    # Write file safely; fallback to /tmp if primary directory is not writable
+    # Write file safely; fallback to temp directory if primary directory is not writable
+    write_succeeded = False
     try:
         with open(file_path, "wb") as f:
             f.write(content_bytes)
+        write_succeeded = True
     except OSError:
         file_path = os.path.join(tempfile.gettempdir(), stored_name)
         try:
             with open(file_path, "wb") as f:
                 f.write(content_bytes)
-        except Exception:
-            pass
+            write_succeeded = True
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to save uploaded file: {str(e)}"
+            )
+
+    if not write_succeeded or not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to store uploaded file on server."
+        )
 
     media_type = detect_media_type(ext)
     
@@ -128,42 +155,43 @@ async def upload_document(
             text_chunks = []
 
     doc_id = str(uuid.uuid4())
-    # Save document and chunks to DB for non-image documents
-    created_at = datetime.utcnow()
-    if media_type == "document" and text_chunks:
-        try:
-            doc = Document(
-                id=doc_id,
-                user_id=current_user.id,
-                filename=filename,
-                file_path=file_path,
-                file_size=len(content_bytes),
-                mime_type=file.content_type or "application/octet-stream",
-                chunk_count=len(text_chunks)
+    # Save document record in DB for all uploads so it can be managed, referenced, and deleted
+    created_at = datetime.now(timezone.utc)
+    try:
+        doc = Document(
+            id=doc_id,
+            user_id=current_user.id,
+            filename=clean_filename,
+            file_path=file_path,
+            file_size=len(content_bytes),
+            mime_type=file.content_type or "application/octet-stream",
+            chunk_count=len(text_chunks),
+            created_at=created_at
+        )
+        db.add(doc)
+        db.flush()
+
+        for idx, chunk_content in enumerate(text_chunks):
+            chunk = DocumentChunk(
+                document_id=doc.id,
+                chunk_index=idx,
+                content=chunk_content
             )
-            db.add(doc)
-            db.flush()
+            db.add(chunk)
 
-            for idx, chunk_content in enumerate(text_chunks):
-                chunk = DocumentChunk(
-                    document_id=doc.id,
-                    chunk_index=idx,
-                    content=chunk_content
-                )
-                db.add(chunk)
-
-            db.commit()
-            db.refresh(doc)
-            created_at = doc.created_at
-        except Exception:
-            try:
-                db.rollback()
-            except Exception:
-                pass
+        db.commit()
+        db.refresh(doc)
+        created_at = doc.created_at
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error while registering uploaded file: {str(e)}"
+        )
 
     return {
         "id": doc_id,
-        "filename": filename,
+        "filename": clean_filename,
         "file_size": len(content_bytes),
         "mime_type": file.content_type or "application/octet-stream",
         "chunk_count": len(text_chunks),

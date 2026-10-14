@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>Pluto AI - Image Understanding Pipeline Audit & Resolution Report</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 14mm 16mm 14mm;
+      @bottom-right {
+        content: counter(page);
+        font-size: 9pt;
+        color: #64748b;
+      }
+    }
+    
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Noto Sans Bengali", "Kalpurush", "SolaimanLipi";
+      color: #0f172a;
+      line-height: 1.55;
+      font-size: 10pt;
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+    }
+    
+    .header {
+      border-bottom: 2px solid #6366f1;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    
+    .title-group h1 {
+      font-size: 18pt;
+      color: #1e1b4b;
+      margin: 0 0 4px 0;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    
+    .title-group p {
+      font-size: 9.5pt;
+      color: #64748b;
+      margin: 0;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .badge-success {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+    }
+
+    .badge-primary {
+      background: #ede9fe;
+      color: #6d28d9;
+      border: 1px solid #c4b5fd;
+    }
+
+    .section {
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      font-size: 12pt;
+      color: #1e293b;
+      border-left: 4px solid #6366f1;
+      padding-left: 8px;
+      margin: 18px 0 10px 0;
+      font-weight: 700;
+    }
+
+    h3 {
+      font-size: 10.5pt;
+      color: #334155;
+      margin: 12px 0 6px 0;
+      font-weight: 600;
+    }
+
+    p {
+      margin: 0 0 8px 0;
+      color: #334155;
+    }
+
+    .card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .card-highlight {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+
+    .table-container {
+      width: 100%;
+      margin: 10px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+    }
+
+    th, td {
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    th {
+      background: #f1f5f9;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 8.5pt;
+      background: #e2e8f0;
+      padding: 1px 4px;
+      border-radius: 4px;
+      color: #0f172a;
+    }
+
+    pre {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 8pt;
+      overflow-x: auto;
+      margin: 8px 0;
+      line-height: 1.45;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .log-box {
+      background: #18181b;
+      color: #4ade80;
+      padding: 10px;
+      border-radius: 6px;
+      font-family: ui-monospace, monospace;
+      font-size: 8pt;
+      line-height: 1.4;
+      margin: 8px 0;
+      border-left: 3px solid #22c55e;
+    }
+
+    .footer {
+      margin-top: 30px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 10px;
+      font-size: 8pt;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="title-group">
+      <h1>Pluto AI - Vision Pipeline Audit & Resolution</h1>
+      <p>Technical Code Audit, Root-Cause Analysis & Verification Report | ZIP & Production Deployment</p>
+    </div>
+    <div>
+      <span class="badge badge-success">Audit & Fix Verified</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>1. Executive Summary & Overview (সারসংক্ষেপ)</h2>
+    <p>
+      <code>pluto-chatbot-main.zip</code> এর কোড পর্যালোচনা করে Image Upload থেকে Multimodal AI Model পর্যন্ত যাওয়ার pipeline-এর মূল ঘাটতিগুলো চিহ্নিত করা হয়েছে এবং সরাসরি সমাধান করে লাইভ টেস্ট দ্বারা যাচাই করা হয়েছে। 
+    </p>
+    <div class="card card-highlight">
+      <strong>মূল ফলাফল ও বর্তমান অবস্থা:</strong>
+      <ul style="margin: 6px 0 0 0; padding-left: 20px;">
+        <li><strong>Image-only Message Fix:</strong> ফ্রন্টএন্ড <code>sendMessage()</code> এখন কোনো টেক্সট ছাড়াই শুধুমাত্র ছবি সিলেক্ট করে পাঠালে রিকোয়েস্ট আটকে না দিয়ে সরাসরি প্রসেস করে।</li>
+        <li><strong>Gemini SSE Error Surfacing:</strong> স্ট্রিম চাঙ্ক পার্সিং এক্সেপশন ও API এরর কোড (400, 429, 503) সাইলেন্টলি ইগনোর না করে কনসোলে ও UI-তে সুস্পষ্টভাবে দেখানো হচ্ছে।</li>
+        <li><strong>Transient Error Retry (503 / 429):</strong> Google Gemini-তে অস্থায়ী সার্ভার স্পাইক বা রেট লিমিট এলে ব্যাকঅফসহ স্বয়ংক্রিয় ২ বার রিট্রাই যুক্ত করা হয়েছে।</li>
+        <li><strong>লাইভ টেস্ট সম্পন্ন:</strong> <code>12 + 15 = ?</code> সংবলিত টেস্ট ছবি Gemini 3.5 Flash-এ পাঠিয়ে সরাসরি সঠিক উত্তর <strong>27</strong> পাওয়া গেছে (লগ সেকশন ৪ দ্রষ্টব্য)।</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>2. ZIP কোড রিভিউ এবং সমস্যাসমূহের সমাধান (Point-by-Point Findings)</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 25%;">পর্যবেক্ষণ (Finding)</th>
+            <th style="width: 45%;">বিশ্লেষণ ও কোডের অবস্থান</th>
+            <th style="width: 30%;">সমাধানের অবস্থা</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1. Image-only Message</strong></td>
+            <td><code>ChatContext.jsx</code>-এ <code>if (!content.trim() || isStreaming) return;</code> থাকার কারণে খালি টেক্সটে ছবি পাঠালে রিকোয়েস্টই ব্লক হতো।</td>
+            <td><span class="badge badge-success">Resolved</span> <code>hasPendingAttachments</code> চেক ও ডিফল্ট প্রম্পট যুক্ত।</td>
+          </tr>
+          <tr>
+            <td><strong>2. Gemini Image Formatting</strong></td>
+            <td><code>gemini_provider.py</code>-তে Data URL থেকে Base64 এক্সট্রাক্ট করে <code>inline_data</code> অবজেক্ট তৈরি বিদ্যমান।</td>
+            <td><span class="badge badge-primary">Verified</span> ফরম্যাটিং সক্রিয় এবং কাজ করছে।</td>
+          </tr>
+          <tr>
+            <td><strong>3. Upload vs Vision Pipeline</strong></td>
+            <td>ছবি আপলোডের পর তা যেন টেক্সট RAG এর ফাঁদে না পড়ে এবং আসল ইমেজ বাইটস সরাসরি ভিশন মডেলে পৌঁছায় তা নিশ্চিত করা।</td>
+            <td><span class="badge badge-success">Resolved</span> ইমেজ ফাইল RAG চ্যাংক হওয়া বন্ধ এবং বাইপাস কার্যকর।</td>
+          </tr>
+          <tr>
+            <td><strong>4. Stream Parsing Errors</strong></td>
+            <td><code>gemini_provider.py</code>-তে SSE স্ট্রিম পার্সিং ট্রাই-ক্যাচে <code>continue</code> দিয়ে সাইলেন্টলি এরর লুকানো ছিল।</td>
+            <td><span class="badge badge-success">Resolved</span> <code>logger.error</code> এবং UI-তে এরর চাঙ্ক প্রদর্শন চালু।</td>
+          </tr>
+          <tr>
+            <td><strong>5. Runtime Log & Real Failure</strong></td>
+            <td>লাইভ রিকোয়েস্টের HTTP স্ট্যাটাস ও জেমিনির আসল এরর লগ না পেলে স্পেসিফিক রুট-কজ প্রমাণ করা সম্ভব ছিল না।</td>
+            <td><span class="badge badge-success">Tested</span> লাইভ রানটাইম টেস্ট স্ক্রিপ্ট তৈরি ও সফল যাচাই।</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>3. বাস্তবায়িত কোড পরিবর্তন (Code Implementation Diff)</h2>
+
+    <h3>ক) Frontend: <code>frontend/src/contexts/ChatContext.jsx</code></h3>
+    <p>ইমেজ-অনলি মেসেজ পাঠানোর অনুমতি এবং টেক্সট খালি থাকলে স্বয়ংক্রিয় প্রম্পট সংযুক্তিকরণ:</p>
+    <pre>
+// Before:
+if (!content.trim() || isStreaming) return;
+
+// After (Implemented & Pushed):
+const hasPendingAttachments =
+  (customAttachments?.length ?? 0) > 0 ||
+  attachedFiles.length > 0;
+
+if ((!content?.trim() && !hasPendingAttachments) || isStreaming) return;
+
+const trimmedContent = (content || '').trim();
+const effectiveContent = trimmedContent || (
+  hasImages
+    ? 'Please analyze this attached image thoroughly and solve any questions or explain all visible details.'
+    : 'Please review and summarize the attached document.'
+);
+    </pre>
+
+    <h3>খ) Backend: <code>backend/app/ai/gemini_provider.py</code></h3>
+    <p>সাইলেন্ট স্ট্রিম ফেইলিউর রোধ, এরর চাঙ্ক সারফেসিং এবং ৫০৩/৪২৯ হ্যান্ডলিং:</p>
+    <pre>
+# SSE এরর অবজেক্ট এবং সেফটি ব্লকরেটিং সরাসরি সনাক্তকরণ
+if "error" in chunk:
+    err_obj = chunk.get("error", {})
+    err_code = err_obj.get("code", "UNKNOWN")
+    err_message = err_obj.get("message", "Error chunk returned by Gemini")
+    logger.error(f"Gemini SSE error chunk ({err_code}): {err_message}")
+    asyncio.run_coroutine_threadsafe(
+        queue.put(f"\n\n⚠️ **Gemini API Error ({err_code})**: {err_message}"),
+        loop
+    )
+    continue
+
+# Transient HTTP 503 / 429 অটোমেটিক রিট্রাই (Max 2 Attempts)
+if e.code in (503, 429) and attempt < max_retries:
+    logger.warning(f"Gemini temporary error {e.code}. Retrying after 1.5s...")
+    time.sleep(1.5)
+    continue
+    </pre>
+  </div>
+
+  <div class="section" style="page-break-before: always;">
+    <h2>4. লাইভ ভেরিফিকেশন টেস্ট রেজাল্ট (Live Test: <code>12 + 15 = ?</code>)</h2>
+    <p>
+      রিভিউয়ারের নির্দেশনা অনুযায়ী <code>12 + 15 = ?</code> অঙ্কযুক্ত একটি পিওর ইমেজ জেনারেট করে সরাসরি Gemini API (<code>gemini-3.5-flash</code>)-এ পাঠিয়ে লাইভ টেস্ট চালানো হয়েছে।
+    </p>
+
+    <div class="log-box">
+==================================================
+TEST: Multimodal Vision with Image '12 + 15 = ?'
+==================================================
+Generated test image: size=5932 bytes base64 (JPEG)
+Using GeminiProvider with key prefix: AQ.Ab8RN...
+
+Sending request to Gemini API (gemini-3.5-flash)...
+Based on the image, the arithmetic equation is:
+
+$$12 + 15 = ?$$
+
+**Answer:**
+$$12 + 15 = 27$$
+
+--------------------------------------------------
+Total time elapsed: 5.10s
+Tokens received count: 4
+HTTP Status: 200 OK (Stream Complete)
+--------------------------------------------------
+✅ SUCCESS: Gemini correctly read the image and answered 27!
+    </div>
+
+    <p>
+      <strong>ফলাফল মূল্যায়ন:</strong> জেমিনি মডেল সরাসরি ইমেজের পিক্সেল পড়ে <code>12 + 15 = ?</code> চিহ্নিত করেছে এবং স্টেপ-বাই-স্টেপ সমাধান করে <strong>27</strong> রিটার্ন করেছে। কোনো জেনেরিক এরর বা নো-টেক্সট রিফিউজাল আসেনি।
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>5. রুট কজ বিশ্লেষণ ও চূড়ান্ত সিদ্ধান্ত (Final Diagnostic Conclusion)</h2>
+    <div class="card">
+      <ol style="margin: 0; padding-left: 20px;">
+        <li><strong>Frontend Blocker ছিল:</strong> পূর্বে ইউজার ছবি সিলেক্ট করে ইনপুট বক্সে কিছু না লিখে Send চাপলে ফ্রন্টএন্ডের <code>if (!content.trim()) return;</code> গার্ড রিকোয়েস্ট আটকে দিত। এটি এখন সম্পূর্ণ সমাধানকৃত।</li>
+        <li><strong>সাইলেন্ট এররের অবসান:</strong> আগে কোনো কারণে স্ট্রিম বা কোটা ফেইল করলে নীরব থাকার কারণে মনে হতো ইমেজ সাপোর্ট নেই; এখন স্পেসিফিক স্ট্যাটাস কোড সহ এরর নোটিশ দৃশ্যমান।</li>
+        <li><strong>কনভারসেশন কন্টিনিউইটি:</strong> ফলো-আপ মেসেজে ইউজার ছবি রি-আপলোড না করে শুধু <em>"উত্তর দাও"</em> লিখলেও চ্যাট হিস্ট্রির আগের ইমেজ স্বয়ংক্রিয়ভাবে জেমিনিতে পাঠানো হচ্ছে।</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Pluto AI Engineering Team &copy; 2026</span>
+    <span>Production Branch: <code>main</code> (Commit <code>6ddb4ad</code>)</span>
+  </div>
+
+</body>
+</html>

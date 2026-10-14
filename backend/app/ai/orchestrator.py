@@ -26,15 +26,33 @@ class ToolOrchestrator:
         clean = query.strip().lower()
 
         # 1. Image Generation Intent
+        image_prefixes = [
+            "/image",
+            "generate an image of",
+            "generate a picture of",
+            "generate an image",
+            "generate a picture",
+            "create an image of",
+            "create a picture of",
+            "create an image",
+            "create a picture",
+            "draw a picture of",
+            "draw an image of",
+            "draw a picture",
+            "draw an image",
+            "make an image of",
+            "make a picture of",
+            "make an image",
+            "make a picture"
+        ]
         is_image_gen = (
-            clean.startswith(("/image", "generate an image", "create an image", "draw an image", "make an image", "draw a picture"))
-            or "generate an image of" in clean
-            or "create an image of" in clean
-            or "generate a picture of" in clean
+            any(clean.startswith(pfx) for pfx in image_prefixes)
+            or any(kw in clean for kw in ["generate an image of", "generate a picture of", "create an image of", "create a picture of"])
         )
         if is_image_gen:
             prompt = query
-            for pfx in ["/image", "generate an image of", "generate an image", "create an image of", "create an image", "draw an image of", "make an image of"]:
+            # Sort prefixes by length descending to match longest first
+            for pfx in sorted(image_prefixes, key=len, reverse=True):
                 if clean.startswith(pfx):
                     prompt = query[len(pfx):].strip(" :,-")
                     break

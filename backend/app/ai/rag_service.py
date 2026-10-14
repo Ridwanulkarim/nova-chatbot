@@ -46,12 +46,113 @@ class RAGService:
 
         return chunks if chunks else [text[:2000]]
 
-    def extract_text_from_file(self, file_path: str, mime_type: str) -> str:
-        """Extracts text content safely from uploaded files."""
+    def _extract_from_docx(self, file_path: str) -> str:
+        """Extracts text from DOCX using python-docx or pure zipfile standard library."""
+        try:
+            import docx
+            doc = docx.Document(file_path)
+            lines = [p.text for p in doc.paragraphs if p.text.strip()]
+            if lines:
+                return "\n\n".join(lines)
+        except Exception:
+            pass
+
+        # Native fallback: extract word/document.xml from docx zip archive
+        try:
+            import zipfile
+            import xml.etree.ElementTree as ET
+            with zipfile.ZipFile(file_path, "r") as zf:
+                if "word/document.xml" not in zf.namelist():
+                    return ""
+                xml_data = zf.read("word/document.xml")
+                tree = ET.fromstring(xml_data)
+                texts = []
+                for elem in tree.iter():
+                    if elem.tag.endswith("}t") and elem.text:
+                        texts.append(elem.text)
+                    elif elem.tag.endswith("}p"):
+                        texts.append("\n")
+                return "".join(texts).strip()
+        except Exception:
+            return ""
+
+    def _extract_from_pdf(self, file_path: str) -> str:
+        """Extracts text from PDF using pypdf if available, or native zlib PDF stream reader."""
+        # 1. Try pypdf
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(file_path)
+            pages_text = []
+            for p in reader.pages:
+                t = p.extract_text()
+                if t and t.strip():
+                    pages_text.append(t.strip())
+            if pages_text:
+                return "\n\n".join(pages_text)
+        except Exception:
+            pass
+
+        # 2. Native PDF stream extractor using zlib
+        try:
+            import zlib
+            extracted_text = []
+            with open(file_path, "rb") as f:
+                pdf_bytes = f.read()
+
+            stream_matches = re.findall(b"stream[\r\n]+(.*?)[\r\n]+endstream", pdf_bytes, re.DOTALL)
+            for s in stream_matches:
+                data = s
+                try:
+                    data = zlib.decompress(s)
+                except Exception:
+                    pass
+
+                # Extract (text) Tj
+                tj_matches = re.findall(rb"\((.*?)\)\s*Tj", data)
+                for m in tj_matches:
+                    try:
+                        decoded = m.decode("latin1", errors="ignore")
+                        if decoded.strip():
+                            extracted_text.append(decoded)
+                    except Exception:
+                        pass
+
+                # Extract [(text)] TJ
+                array_matches = re.findall(rb"\[(.*?)\]\s*TJ", data)
+                for arr in array_matches:
+                    parts = re.findall(rb"\((.*?)\)", arr)
+                    for part in parts:
+                        try:
+                            decoded = part.decode("latin1", errors="ignore")
+                            if decoded.strip():
+                                extracted_text.append(decoded)
+                        except Exception:
+                            pass
+
+            return " ".join(extracted_text).strip()
+        except Exception:
+            return ""
+
+    def extract_text_from_file(self, file_path: str, mime_type: str = "") -> str:
+        """Extracts text content safely from uploaded files respecting file types."""
         if not os.path.exists(file_path):
             return ""
 
-        # Handle text, markdown, csv, json
+        ext = os.path.splitext(file_path)[1].lower()
+        
+        # 1. PDF
+        if ext == ".pdf" or "pdf" in mime_type.lower():
+            pdf_text = self._extract_from_pdf(file_path)
+            if pdf_text:
+                return pdf_text
+
+        # 2. DOCX
+        if ext == ".docx" or "word" in mime_type.lower() or "officedocument" in mime_type.lower():
+            docx_text = self._extract_from_docx(file_path)
+            if docx_text:
+                return docx_text
+
+        # 3. Text, Markdown, CSV, JSON, Code files
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 return f.read()

@@ -9,49 +9,50 @@ def get_current_user(
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ) -> User:
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization.split(" ")[1]
-        payload = verify_access_token(token)
-        if payload and "sub" in payload:
-            user_id = payload["sub"]
-            user = db.query(User).filter(User.id == user_id).first()
-            if not user:
-                # Auto-heal JWT-verified user across ephemeral serverless instances
-                email = payload.get("email") or f"user_{user_id[:8]}@pluto-ai.local"
-                user = User(
-                    id=user_id,
-                    email=email,
-                    full_name="Pluto User",
-                    hashed_password="verified_jwt_session",
-                    is_active=True
-                )
-                db.add(user)
-                try:
-                    db.commit()
-                    db.refresh(user)
-                except Exception:
-                    db.rollback()
-                    user = db.query(User).filter(User.id == user_id).first()
-            if user and user.is_active:
-                return user
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
 
-    # Seamless fallback to guest user so file uploads and chat never fail due to expired/missing session
-    guest_email = "guest.developer@pluto-ai.local"
-    guest = db.query(User).filter(User.email == guest_email).first()
-    if not guest:
-        guest = db.query(User).filter(User.email == "guest.developer@nova-ai.local").first()
-    if not guest:
-        guest = User(
-            id="guest-default-user",
-            email=guest_email,
-            full_name="Guest User",
-            hashed_password="guest_no_password",
+    token = authorization.split(" ", 1)[1].strip()
+    payload = verify_access_token(token)
+    if not payload or "sub" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token or session expired",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    user_id = payload["sub"]
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        # Recreate JWT-verified user session if DB was recreated/ephemeral
+        email = payload.get("email") or f"user_{user_id[:8]}@pluto-ai.local"
+        user = User(
+            id=user_id,
+            email=email,
+            full_name="Pluto User",
+            hashed_password="verified_jwt_session",
             is_active=True
         )
-        db.add(guest)
-        db.commit()
-        db.refresh(guest)
-    return guest
+        db.add(user)
+        try:
+            db.commit()
+            db.refresh(user)
+        except Exception:
+            db.rollback()
+            user = db.query(User).filter(User.id == user_id).first()
+
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Inactive user or user not found",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    return user
 
 def get_optional_current_user(
     authorization: Optional[str] = Header(None),

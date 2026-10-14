@@ -1,6 +1,13 @@
 import asyncio
 from typing import List, Dict, Any
-from duckduckgo_search import DDGS
+
+try:
+    from ddgs import DDGS
+except ImportError:
+    try:
+        from duckduckgo_search import DDGS
+    except ImportError:
+        DDGS = None
 
 class WebSearchService:
     def __init__(self, max_results: int = 5):
@@ -9,7 +16,7 @@ class WebSearchService:
     async def search(self, query: str) -> List[Dict[str, Any]]:
         """Executes a web search asynchronously and returns structured results."""
         clean_query = query.strip()
-        if not clean_query:
+        if not clean_query or not DDGS:
             return []
 
         def _sync_search():

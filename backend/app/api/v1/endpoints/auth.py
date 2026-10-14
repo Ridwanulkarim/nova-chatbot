@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import time
+from collections import defaultdict
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.models.user import User
@@ -9,8 +11,23 @@ from app.api.deps import get_current_user
 
 router = APIRouter()
 
+_AUTH_ATTEMPTS = defaultdict(list)
+
+def _check_auth_rate_limit(key: str, max_attempts: int = 10, window_seconds: int = 60):
+    now = time.time()
+    _AUTH_ATTEMPTS[key] = [t for t in _AUTH_ATTEMPTS[key] if now - t < window_seconds]
+    if len(_AUTH_ATTEMPTS[key]) >= max_attempts:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many attempts. Please wait a moment and try again."
+        )
+    _AUTH_ATTEMPTS[key].append(now)
+
 @router.post("/register", response_model=TokenResponse)
-def register(user_in: UserRegister, db: Session = Depends(get_db)):
+def register(user_in: UserRegister, request: Request, db: Session = Depends(get_db)):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_auth_rate_limit(f"register_{client_ip}", max_attempts=10, window_seconds=60)
+
     existing = db.query(User).filter(User.email == user_in.email.lower()).first()
     if existing:
         raise HTTPException(
@@ -42,7 +59,11 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
     }
 
 @router.post("/login", response_model=TokenResponse)
-def login(login_in: UserLogin, db: Session = Depends(get_db)):
+def login(login_in: UserLogin, request: Request, db: Session = Depends(get_db)):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_auth_rate_limit(f"login_ip_{client_ip}", max_attempts=15, window_seconds=60)
+    _check_auth_rate_limit(f"login_acc_{login_in.email.lower()}", max_attempts=6, window_seconds=60)
+
     user = db.query(User).filter(User.email == login_in.email.lower()).first()
     if not user or not verify_password(login_in.password, user.hashed_password):
         raise HTTPException(

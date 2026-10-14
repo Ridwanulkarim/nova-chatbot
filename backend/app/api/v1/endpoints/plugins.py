@@ -1,45 +1,68 @@
-import json
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.database.session import get_db
 from app.models.user import User
+from app.models.plugin import UserPlugin
 from app.api.deps import get_current_user
 
 router = APIRouter()
 
-# In-memory user installed plugins registry (persisted per user)
-_USER_INSTALLED_PLUGINS: Dict[str, set] = {}
+DEFAULT_PLUGINS = ["github", "web_search", "document_rag"]
 
 class TogglePluginRequest(BaseModel):
     plugin_id: str
     action: str  # "install" | "uninstall"
 
 @router.get("/installed")
-def get_installed_plugins(current_user: User = Depends(get_current_user)):
-    user_installed = _USER_INSTALLED_PLUGINS.get(current_user.id, {"github", "web_search", "document_rag"})
-    return {"installed_plugin_ids": list(user_installed)}
+def get_installed_plugins(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    user_plugins = db.query(UserPlugin).filter(UserPlugin.user_id == current_user.id).all()
+    if not user_plugins:
+        # Initialize default plugins for user in database
+        for pid in DEFAULT_PLUGINS:
+            db.add(UserPlugin(user_id=current_user.id, plugin_id=pid))
+        try:
+            db.commit()
+            user_plugins = db.query(UserPlugin).filter(UserPlugin.user_id == current_user.id).all()
+        except Exception:
+            db.rollback()
+            return {"installed_plugin_ids": DEFAULT_PLUGINS}
+
+    installed_ids = [p.plugin_id for p in user_plugins]
+    return {"installed_plugin_ids": installed_ids}
 
 @router.post("/toggle")
 def toggle_plugin(
     req: TogglePluginRequest,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.id not in _USER_INSTALLED_PLUGINS:
-        _USER_INSTALLED_PLUGINS[current_user.id] = {"github", "web_search", "document_rag"}
+    existing = db.query(UserPlugin).filter(
+        UserPlugin.user_id == current_user.id,
+        UserPlugin.plugin_id == req.plugin_id
+    ).first()
 
-    installed_set = _USER_INSTALLED_PLUGINS[current_user.id]
     if req.action == "install":
-        installed_set.add(req.plugin_id)
+        if not existing:
+            new_p = UserPlugin(user_id=current_user.id, plugin_id=req.plugin_id)
+            db.add(new_p)
+            db.commit()
         is_installed = True
     else:
-        installed_set.discard(req.plugin_id)
+        if existing:
+            db.delete(existing)
+            db.commit()
         is_installed = False
+
+    total_count = db.query(UserPlugin).filter(UserPlugin.user_id == current_user.id).count()
 
     return {
         "success": True,
         "plugin_id": req.plugin_id,
         "is_installed": is_installed,
-        "installed_count": len(installed_set)
+        "installed_count": total_count
     }

@@ -1,11 +1,14 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database.session import Base
 
 def generate_uuid() -> str:
     return str(uuid.uuid4())
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 class Message(Base):
     __tablename__ = "messages"
@@ -19,7 +22,7 @@ class Message(Base):
     citations = Column(Text, nullable=True) # JSON array of citations
     feedback = Column(Integer, nullable=True) # 1 for thumbs up, -1 for thumbs down
     attachments = Column(Text, nullable=True) # JSON array of attached files/images/videos
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
 
     # Relationships
     conversation = relationship("Conversation", back_populates="messages")

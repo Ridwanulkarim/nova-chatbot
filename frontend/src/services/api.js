@@ -24,7 +24,7 @@ export const API_HOST = getApiHost();
 export const API_BASE = `${API_HOST}/api/v1`;
 
 export const getAuthToken = () => {
-  return localStorage.getItem('nova_ai_token') || localStorage.getItem('pluto_ai_token');
+  return localStorage.getItem('pluto_ai_token') || localStorage.getItem('nova_ai_token');
 };
 
 export const setAuthToken = (token) => {

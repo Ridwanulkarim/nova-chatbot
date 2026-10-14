@@ -13,6 +13,7 @@ from app.schemas.conversation import (
     ConversationDetail,
 )
 from app.api.deps import get_current_user
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -38,7 +39,7 @@ def create_conversation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    model = conv_in.model or (current_user.settings.default_model if current_user.settings else "gpt-4o-mini")
+    model = conv_in.model or (current_user.settings.default_model if current_user.settings else settings.DEFAULT_MODEL)
     conv = Conversation(
         user_id=current_user.id,
         title=conv_in.title or "New Chat",
@@ -56,35 +57,15 @@ def get_conversation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    existing_any = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-    if existing_any:
-        if existing_any.user_id != current_user.id:
-            conv_owner = db.query(User).filter(User.id == existing_any.user_id).first()
-            if (
-                conv_owner
-                and conv_owner.email.endswith("@novachat.test")
-                and current_user.email.endswith("@novachat.test")
-                and conv_owner.email != current_user.email
-            ):
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Access restricted"
-                )
-            existing_any.user_id = current_user.id
-            db.commit()
-            return existing_any
-        return existing_any
-
-    # Auto-create if conversation does not exist at all in DB (e.g. serverless restart)
-    conv = Conversation(
-        id=conversation_id,
-        user_id=current_user.id,
-        title="New Chat",
-        model=current_user.settings.default_model if current_user.settings else "gpt-4o-mini"
-    )
-    db.add(conv)
-    db.commit()
-    db.refresh(conv)
+    conv = db.query(Conversation).filter(
+        Conversation.id == conversation_id,
+        Conversation.user_id == current_user.id
+    ).first()
+    if not conv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found"
+        )
     return conv
 
 @router.patch("/{conversation_id}", response_model=ConversationOut)
@@ -94,33 +75,15 @@ def update_conversation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    existing_any = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-    if existing_any:
-        if existing_any.user_id != current_user.id:
-            conv_owner = db.query(User).filter(User.id == existing_any.user_id).first()
-            if (
-                conv_owner
-                and conv_owner.email.endswith("@novachat.test")
-                and current_user.email.endswith("@novachat.test")
-                and conv_owner.email != current_user.email
-            ):
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Access restricted"
-                )
-            existing_any.user_id = current_user.id
-            db.commit()
-        conv = existing_any
-    else:
-        conv = Conversation(
-            id=conversation_id,
-            user_id=current_user.id,
-            title=conv_update.title or "New Chat",
-            model=conv_update.model or (current_user.settings.default_model if current_user.settings else "gpt-4o-mini")
+    conv = db.query(Conversation).filter(
+        Conversation.id == conversation_id,
+        Conversation.user_id == current_user.id
+    ).first()
+    if not conv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found"
         )
-        db.add(conv)
-        db.commit()
-        db.refresh(conv)
     
     if conv_update.title is not None:
         conv.title = conv_update.title.strip()
@@ -147,9 +110,13 @@ def delete_conversation(
         Conversation.id == conversation_id,
         Conversation.user_id == current_user.id
     ).first()
-    if conv:
-        db.delete(conv)
-        db.commit()
+    if not conv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found"
+        )
+    db.delete(conv)
+    db.commit()
     return {"message": "Conversation deleted successfully"}
 
 @router.post("/{conversation_id}/share")
@@ -163,31 +130,10 @@ def toggle_share(
         Conversation.user_id == current_user.id
     ).first()
     if not conv:
-        existing_any = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-        if existing_any:
-            conv_owner = db.query(User).filter(User.id == existing_any.user_id).first()
-            if (
-                conv_owner
-                and conv_owner.email.endswith("@novachat.test")
-                and current_user.email.endswith("@novachat.test")
-                and conv_owner.email != current_user.email
-            ):
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Access restricted"
-                )
-            existing_any.user_id = current_user.id
-            db.commit()
-            conv = existing_any
-        else:
-            conv = Conversation(
-                id=conversation_id,
-                user_id=current_user.id,
-                title="New Chat",
-            )
-            db.add(conv)
-            db.commit()
-            db.refresh(conv)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found"
+        )
     
     if conv.share_token:
         # Revoke sharing
