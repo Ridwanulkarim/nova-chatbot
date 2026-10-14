@@ -104,6 +104,10 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "pluto_ai_jwt_secret_key_2026_super_secure_production_fallback"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     
+    FIREBASE_PROJECT_ID: str = "plutochatbot"
+    FIREBASE_SERVICE_ACCOUNT_PATH: Optional[str] = None
+    FIREBASE_SERVICE_ACCOUNT_KEY: Optional[str] = None
+
     DATABASE_URL: str = get_default_database_url()
     
     # AI API Keys
@@ -147,20 +151,9 @@ settings.OPENAI_API_KEY = _clean_key(settings.OPENAI_API_KEY) or _read_env_val("
 settings.GROQ_API_KEY = _clean_key(settings.GROQ_API_KEY) or _read_env_val("GROQ_API_KEY")
 settings.GEMINI_API_KEY = _clean_key(settings.GEMINI_API_KEY) or _read_env_val("GEMINI_API_KEY")
 
-# Normalize postgres:// to postgresql:// for SQLAlchemy compatibility (Supabase, Neon, Heroku)
+# Normalize postgres:// to postgresql:// for standard SQLAlchemy compatibility
 if settings.DATABASE_URL and settings.DATABASE_URL.startswith("postgres://"):
     settings.DATABASE_URL = settings.DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-# If PostgreSQL URL does not specify a dialect driver, auto-select between psycopg2 and pure-python pg8000
-if settings.DATABASE_URL and settings.DATABASE_URL.startswith("postgresql://"):
-    try:
-        import psycopg2
-    except ImportError:
-        try:
-            import pg8000
-            settings.DATABASE_URL = settings.DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
-        except ImportError:
-            pass
 
 if not settings.GEMINI_API_KEY and settings.GROQ_API_KEY:
     settings.DEFAULT_MODEL = "openai/gpt-oss-120b"

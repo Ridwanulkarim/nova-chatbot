@@ -405,13 +405,22 @@ export function Sidebar({ isOpen, onClose, onOpenSettings, onOpenDocModal, onOpe
           {isAuthenticated ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold ${
-                  isLight
-                    ? 'bg-purple-100 border-purple-300 text-purple-800'
-                    : 'bg-slate-800 border-slate-700 text-brand-300'
-                }`}>
-                  {user?.email ? user.email[0].toUpperCase() : 'U'}
-                </div>
+                {user?.photo_url || user?.photoURL ? (
+                  <img
+                    src={user.photo_url || user.photoURL}
+                    alt={user.full_name || 'User'}
+                    referrerPolicy="no-referrer"
+                    className="w-8 h-8 rounded-full object-cover border border-purple-300 dark:border-slate-700 flex-shrink-0"
+                  />
+                ) : (
+                  <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold ${
+                    isLight
+                      ? 'bg-purple-100 border-purple-300 text-purple-800'
+                      : 'bg-slate-800 border-slate-700 text-brand-300'
+                  }`}>
+                    {user?.email ? user.email[0].toUpperCase() : 'U'}
+                  </div>
+                )}
                 <div className="truncate">
                   <div className={`text-xs font-semibold truncate ${
                     isLight ? 'text-slate-900' : 'text-slate-200'

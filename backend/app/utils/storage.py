@@ -55,6 +55,20 @@ class StorageService:
         except Exception:
             pass
 
+        # Production persistence advisory guard: warn if saving to ephemeral storage in production/serverless
+        is_prod = (
+            getattr(settings, "ENVIRONMENT", "").lower() in ("production", "prod")
+            or os.environ.get("VERCEL") == "1"
+        )
+        if is_prod and not settings.S3_BUCKET_NAME:
+            logger.warning(
+                "Storage Warning: Persistent object storage (S3_BUCKET_NAME) is unconfigured. "
+                "Saving '%s' to ephemeral storage (%s). "
+                "Files stored in ephemeral storage will not persist across serverless instance lifecycles.",
+                filename,
+                upload_dir
+            )
+
         file_path = os.path.join(upload_dir, stored_name)
         try:
             with open(file_path, "wb") as f:

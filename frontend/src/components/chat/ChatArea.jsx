@@ -15,6 +15,7 @@ import {
   SquarePen,
 } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { MessageItem } from './MessageItem';
 import { WelcomeScreen } from './WelcomeScreen';
 import { ChatComposer } from './ChatComposer';
@@ -42,6 +43,7 @@ export function ChatArea({
     isStreaming,
     dailyQuota,
   } = useChat();
+  const { isAuthenticated, setIsAuthModalOpen, user } = useAuth();
 
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
@@ -370,6 +372,36 @@ export function ChatArea({
           >
             <Settings size={16} />
           </button>
+
+          {/* Auth Button (Sign In / User Avatar) */}
+          {!isAuthenticated ? (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs shadow-md shadow-purple-600/25 transition-all flex-shrink-0 cursor-pointer"
+              title="Sign in or register"
+            >
+              <span>Sign in</span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenSettings}
+              className="w-7 h-7 rounded-full border border-purple-300 dark:border-slate-700 flex items-center justify-center text-xs font-bold overflow-hidden transition-transform hover:scale-105 flex-shrink-0 cursor-pointer"
+              title={user?.full_name || user?.email || 'Account settings'}
+            >
+              {user?.photo_url || user?.photoURL ? (
+                <img
+                  src={user.photo_url || user.photoURL}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className={`text-[11px] ${theme === 'lavender-glow' ? 'text-purple-800' : 'text-brand-300'}`}>
+                  {user?.email ? user.email[0].toUpperCase() : 'U'}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </header>
 

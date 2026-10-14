@@ -4,15 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
-from app.database.session import engine, Base
-import app.database.base # Register all models with Base
+import app.database.base  # Register all models with Base
 from app.api.v1.api_router import api_router
 
-# Initialize tables safely
-try:
-    Base.metadata.create_all(bind=engine)
-except Exception as e:
-    print(f"Warning: Base.metadata.create_all skipped/deferred: {e}")
+# Schema initialization is intentionally decoupled from app import/startup
+# to prevent DDL catalog lock contention on serverless cold starts.
+# To initialize schema explicitly, run: python -m app.database.init_db
 
 # Ensure upload directory exists safely
 try:

@@ -15,7 +15,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), default="New Chat", nullable=False)
     model = Column(String(100), default=settings.DEFAULT_MODEL, nullable=False)
     system_prompt = Column(Text, nullable=True)

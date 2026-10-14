@@ -1,16 +1,18 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from app.core.config import settings
+from app.core.config import settings, is_running_on_vercel
+from app.database.connection import configure_database_connection
 
-# Engine configuration
-connect_args = {}
-if settings.DATABASE_URL.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
+# Configure database URL, driver arguments (e.g. SSL for pg8000), and serverless pool options
+normalized_url, connect_args, engine_kwargs = configure_database_connection(
+    settings.DATABASE_URL,
+    is_vercel=is_running_on_vercel()
+)
 
 engine = create_engine(
-    settings.DATABASE_URL,
+    normalized_url,
     connect_args=connect_args,
-    pool_pre_ping=True
+    **engine_kwargs
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

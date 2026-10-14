@@ -14,7 +14,7 @@ class UserMemory(Base):
     __tablename__ = "user_memories"
 
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     content = Column(Text, nullable=False)
     category = Column(String(50), default="preference", nullable=False)
     created_at = Column(DateTime, default=utc_now, index=True)

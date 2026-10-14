@@ -1,3 +1,4 @@
+import os
 import base64
 import hashlib
 import hmac
@@ -5,7 +6,16 @@ import json
 import secrets
 import time
 from typing import Optional, Dict, Any
+import requests
+import cachecontrol
+from google.auth.transport.requests import Request
+from google.oauth2 import id_token
+from google.auth.exceptions import GoogleAuthError
 from app.core.config import settings
+
+# Thread-safe cached HTTP transport adapter for Google public x509 certificate fetching
+_cached_session = cachecontrol.CacheControl(requests.Session())
+_google_auth_request = Request(_cached_session)
 
 def hash_password(password: str) -> str:
     """Hash a password using PBKDF2-HMAC-SHA256 with 200,000 iterations and random salt."""
@@ -106,3 +116,109 @@ def verify_access_token(token: str) -> Optional[Dict[str, Any]]:
         return payload
     except Exception:
         return None
+
+def get_token_algorithm(token: str) -> Optional[str]:
+    """Inspect unverified JWT header to determine algorithm (HS256 vs RS256)."""
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return None
+        header_b64 = parts[0]
+        rem = len(header_b64) % 4
+        padded = header_b64 + ("=" * (4 - rem) if rem else "")
+        header = json.loads(base64.urlsafe_b64decode(padded.encode()).decode())
+        return header.get("alg")
+    except Exception:
+        return None
+
+def verify_firebase_id_token(token: str) -> Optional[Dict[str, Any]]:
+    """
+    Verify a Firebase ID token using Google's official zero-secret public certificate verifier.
+    Validates RSA signature against Google's public certs, expiry, audience, issuer, and subject.
+    Returns decoded token claims dictionary containing 'uid', 'email', 'name', etc., or None.
+    """
+    if not token or not isinstance(token, str):
+        return None
+
+    try:
+        project_id = getattr(settings, "FIREBASE_PROJECT_ID", "plutochatbot") or "plutochatbot"
+
+        # Verify cryptographic signature, expiry, and audience using cached Google public certs
+        claims = id_token.verify_firebase_token(
+            token,
+            _google_auth_request,
+            audience=project_id,
+            clock_skew_in_seconds=10
+        )
+
+        if not isinstance(claims, dict):
+            return None
+
+        # Explicitly validate the token issuer
+        expected_issuer = f"https://securetoken.google.com/{project_id}"
+        if claims.get("iss") != expected_issuer:
+            return None
+
+        # Require a non-empty string subject (sub) and map it to uid for user provisioning
+        sub = claims.get("sub")
+        if not sub or not isinstance(sub, str) or len(sub) > 128:
+            return None
+
+        claims["uid"] = sub
+        return claims
+    except (ValueError, GoogleAuthError, Exception):
+        # Handle invalid, expired, malformed tokens, and network/transport failures safely
+        return None
+
+def verify_token(token: str) -> Optional[Dict[str, Any]]:
+    """
+    Unified dual-authentication token verifier:
+    1. If algorithm is RS256, verifies via Firebase Admin SDK.
+    2. If algorithm is HS256, verifies via local HMAC-SHA256 signature.
+    3. Handles fallback gracefully to maintain full backward compatibility.
+    """
+    if not token or not isinstance(token, str):
+        return None
+
+    alg = get_token_algorithm(token)
+
+    if alg == "RS256":
+        claims = verify_firebase_id_token(token)
+        if claims:
+            return {
+                "sub": claims.get("uid"),
+                "uid": claims.get("uid"),
+                "email": claims.get("email"),
+                "full_name": claims.get("name"),
+                "picture": claims.get("picture"),
+                "is_firebase": True,
+                "claims": claims
+            }
+        return None
+
+    if alg == "HS256":
+        local_payload = verify_access_token(token)
+        if local_payload:
+            local_payload["is_firebase"] = False
+            return local_payload
+        return None
+
+    # Fallback if algorithm could not be read from header
+    claims = verify_firebase_id_token(token)
+    if claims:
+        return {
+            "sub": claims.get("uid"),
+            "uid": claims.get("uid"),
+            "email": claims.get("email"),
+            "full_name": claims.get("name"),
+            "picture": claims.get("picture"),
+            "is_firebase": True,
+            "claims": claims
+        }
+
+    local_payload = verify_access_token(token)
+    if local_payload:
+        local_payload["is_firebase"] = False
+        return local_payload
+
+    return None
