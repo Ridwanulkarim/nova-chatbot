@@ -1,7 +1,6 @@
 import sys
 import os
 import traceback
-import json
 
 # Ensure backend root is in sys.path
 current_dir = os.path.abspath(os.path.dirname(__file__))
@@ -14,28 +13,24 @@ except Exception as exc:
     err_tb = traceback.format_exc()
     print("FATAL: Failed to import app.main in backend/main.py:\n", err_tb, file=sys.stderr)
 
-    async def app(scope, receive, send):
-        if scope["type"] == "http":
-            body = json.dumps({
-                "error": "Backend Service Startup Failure",
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+
+    app = FastAPI(title="Pluto AI Startup Diagnostic")
+
+    @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+    def diagnostic_fallback(full_path: str):
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Backend Startup Failure",
                 "detail": str(exc),
                 "traceback": err_tb,
-                "sys_path": sys.path,
+                "python_version": sys.version,
                 "cwd": os.getcwd(),
+                "sys_path": sys.path,
                 "files_in_dir": os.listdir(current_dir) if os.path.isdir(current_dir) else [],
-            }, indent=2).encode("utf-8")
-            await send({
-                "type": "http.response.start",
-                "status": 500,
-                "headers": [
-                    [b"content-type", b"application/json"],
-                    [b"content-length", str(len(body)).encode("utf-8")],
-                    [b"access-control-allow-origin", b"*"],
-                ],
-            })
-            await send({
-                "type": "http.response.body",
-                "body": body,
-            })
+            }
+        )
 
 __all__ = ["app"]
