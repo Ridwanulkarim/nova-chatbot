@@ -100,14 +100,14 @@ export function ChatArea({
             <PanelLeft size={18} />
           </button>
 
-          {/* New Chat Button - Always Visible & Clickable on Mobile & Desktop */}
+          {/* New Chat Button */}
           <button
             onClick={createNewChat}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs shadow-md shadow-brand-600/25 transition-all flex-shrink-0 cursor-pointer"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs shadow-md shadow-brand-600/25 transition-all flex-shrink-0 cursor-pointer"
             title="Start New Chat"
           >
             <SquarePen size={14} />
-            <span>New Chat</span>
+            <span className="hidden sm:inline">New Chat</span>
           </button>
 
           {/* Conversation Title (if inside conversation with messages) */}
@@ -168,7 +168,7 @@ export function ChatArea({
                   onClick={() => setShowQuotaTooltip((v) => !v)}
                   onMouseEnter={() => setShowQuotaTooltip(true)}
                   onMouseLeave={() => setShowQuotaTooltip(false)}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium border transition-all ${
+                  className={`flex items-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium border transition-all ${
                     quota.remaining_messages <= 5 || quota.remaining_images <= 2
                       ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
                       : theme === 'lavender-glow'
@@ -177,18 +177,18 @@ export function ChatArea({
                   }`}
                   title="Daily quota: messages and AI images"
                 >
-                  <div className="flex items-center gap-1">
-                    <Zap size={13} className="text-amber-500 fill-amber-500/20 flex-shrink-0" />
+                  <div className="flex items-center gap-0.5 sm:gap-1">
+                    <Zap size={12} className="text-amber-500 fill-amber-500/20 flex-shrink-0" />
                     <span>
-                      {quota.remaining_messages}<span className="hidden sm:inline">/{quota.message_limit} msgs</span>
+                      {quota.remaining_messages}<span className="hidden md:inline">/{quota.message_limit} msgs</span>
                     </span>
                   </div>
                   <span className={theme === 'lavender-glow' ? 'text-purple-300' : 'text-slate-600'}>|</span>
-                  <div className={`flex items-center gap-1 font-semibold ${
+                  <div className={`flex items-center gap-0.5 sm:gap-1 font-semibold ${
                     theme === 'lavender-glow' ? 'text-purple-700' : 'text-indigo-300'
                   }`}>
-                    <ImageIcon size={13} className={`${theme === 'lavender-glow' ? 'text-purple-600' : 'text-indigo-400'} flex-shrink-0`} />
-                    <span>{quota.remaining_images}<span className="hidden sm:inline">/{quota.image_limit} AI Images</span></span>
+                    <ImageIcon size={12} className={`${theme === 'lavender-glow' ? 'text-purple-600' : 'text-indigo-400'} flex-shrink-0`} />
+                    <span>{quota.remaining_images}<span className="hidden md:inline">/{quota.image_limit} AI Images</span></span>
                   </div>
                 </button>
 
@@ -294,15 +294,6 @@ export function ChatArea({
           >
             <Sparkles size={13} className={theme === 'lavender-glow' ? 'text-purple-600' : 'text-sky-400'} />
             <span>Upgrade</span>
-          </button>
-
-          {/* Mobile Quick New Chat Button */}
-          <button
-            onClick={createNewChat}
-            className="flex sm:hidden items-center justify-center p-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/30 transition-transform active:scale-95 flex-shrink-0"
-            title="Start New Chat"
-          >
-            <SquarePen size={15} />
           </button>
 
           {/* Live Voice Mode Button */}

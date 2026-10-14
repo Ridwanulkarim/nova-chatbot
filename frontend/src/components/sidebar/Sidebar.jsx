@@ -152,8 +152,10 @@ export function Sidebar({ isOpen, onClose, onOpenSettings, onOpenDocModal, onOpe
           )}
         </div>
 
-        {/* Action icons */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+        {/* Action icons - always visible if active or on hover */}
+        <div className={`flex items-center gap-1 transition-opacity ml-1 ${
+          isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        }`}>
           {isEditing ? (
             <button
               onClick={(e) => handleSaveRename(conv.id, e)}

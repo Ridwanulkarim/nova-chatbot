@@ -57,6 +57,79 @@ def get_messages(
         )
     return conv.messages
 
+def generate_smart_title(content: str) -> str:
+    """
+    Generate a concise, professional, and relevant title (3-6 words) from the user's initial message.
+    Cleans out greetings, filler words, question prefixes, and markdown syntax.
+    """
+    if not content or not isinstance(content, str):
+        return "New Chat"
+
+    raw = content.strip()
+    clean_low = raw.lower()
+
+    # Common greetings and conversational starters
+    greetings = {
+        "hello": "Hello & Greeting",
+        "hi": "Hello & Greeting",
+        "hey": "Hello & Greeting",
+        "hi there": "Hello & Greeting",
+        "hello pluto": "Hello & Greeting",
+        "hola": "Hello & Greeting",
+        "salam": "Greetings & Assistance",
+        "assalamu alaikum": "Greetings & Assistance",
+        "ki khobor": "Casual Conversation",
+        "ki kora laghbe": "Guidance & Assistance",
+        "ki kora lagbe": "Guidance & Assistance",
+        "help": "Help & Support",
+    }
+    for greet_key, greet_title in greetings.items():
+        if clean_low == greet_key or clean_low.startswith(greet_key + " ") or clean_low.startswith(greet_key + "!"):
+            return greet_title
+
+    # Image generation intent titles
+    for prefix in ["generate an image of", "generate a picture of", "create an image of", "draw an image of", "/image"]:
+        if clean_low.startswith(prefix):
+            img_subj = raw[len(prefix):].strip(" :,-")
+            if img_subj:
+                words = [w.capitalize() for w in img_subj.split()[:5]]
+                return f"Image: {' '.join(words)}"[:38]
+
+    # Strip conversational question fillers
+    fillers = [
+        "can you please tell me about",
+        "can you please help me with",
+        "can you help me with",
+        "can you help me",
+        "can you explain",
+        "could you please",
+        "could you tell me",
+        "i want you to",
+        "i would like to",
+        "how do i",
+        "how to",
+        "what is",
+        "tell me about",
+        "write a",
+        "please",
+    ]
+    trimmed = raw
+    for filler in fillers:
+        if clean_low.startswith(filler):
+            trimmed = raw[len(filler):].strip(" :,-?")
+            break
+
+    words = [w for w in trimmed.split() if w]
+    if not words:
+        words = raw.split()[:5]
+
+    # Capitalize and take top 4-5 words
+    title_words = [w.capitalize() for w in words[:5]]
+    title = " ".join(title_words).strip(" .,?!:;-")
+    if not title:
+        title = "New Chat"
+    return title[:38]
+
 @router.post("/{conversation_id}/messages/stream")
 async def stream_message(
     conversation_id: str,
@@ -132,11 +205,10 @@ async def stream_message(
         db.add(user_message)
         conv.updated_at = datetime.now(timezone.utc)
         
-        # Auto-update title if it's the first message
+        # Auto-update title if it's the first message or default title
         updated_title = None
-        if conv.title == "New Chat":
-            clean_first = " ".join(msg_in.content.strip().split()[:6])
-            conv.title = clean_first[:40] if clean_first else "New Chat"
+        if not conv.title or conv.title.strip() in ("New Chat", "Live Test", "Untitled"):
+            conv.title = generate_smart_title(msg_in.content)
             updated_title = conv.title
             
         db.commit()

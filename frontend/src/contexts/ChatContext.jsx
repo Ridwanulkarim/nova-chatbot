@@ -24,9 +24,86 @@ export const DEFAULT_MODELS = [
   { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B (Groq)', supports_vision: false },
 ];
 
+export function generateSmartTitle(content) {
+  if (!content || typeof content !== 'string') return 'New Chat';
+  const raw = content.trim();
+  const cleanLow = raw.toLowerCase();
+
+  const greetings = {
+    'hello': 'Hello & Greeting',
+    'hi': 'Hello & Greeting',
+    'hey': 'Hello & Greeting',
+    'hi there': 'Hello & Greeting',
+    'hello pluto': 'Hello & Greeting',
+    'hola': 'Hello & Greeting',
+    'salam': 'Greetings & Assistance',
+    'assalamu alaikum': 'Greetings & Assistance',
+    'ki khobor': 'Casual Conversation',
+    'ki kora laghbe': 'Guidance & Assistance',
+    'ki kora lagbe': 'Guidance & Assistance',
+    'help': 'Help & Support',
+  };
+
+  for (const [k, v] of Object.entries(greetings)) {
+    if (cleanLow === k || cleanLow.startsWith(k + ' ') || cleanLow.startsWith(k + '!') || cleanLow.startsWith(k + '?') || cleanLow.startsWith(k + ',')) {
+      return v;
+    }
+  }
+
+  const imagePrefixes = ['generate an image of', 'generate a picture of', 'create an image of', 'draw an image of', '/image'];
+  for (const prefix of imagePrefixes) {
+    if (cleanLow.startsWith(prefix)) {
+      const subj = raw.slice(prefix.length).replace(/^[:\s,-]+/, '');
+      if (subj) {
+        const words = subj.split(/\s+/).slice(0, 5).map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+        return `Image: ${words.join(' ')}`.slice(0, 38);
+      }
+    }
+  }
+
+  const questionFillers = [
+    'can you please tell me about',
+    'can you please help me with',
+    'can you help me with',
+    'can you help me',
+    'can you explain',
+    'could you please',
+    'could you tell me',
+    'i want you to',
+    'i would like to',
+    'how do i',
+    'how to',
+    'what is',
+    'tell me about',
+    'write a',
+    'please',
+  ];
+
+  let trimmed = raw;
+  for (const filler of questionFillers) {
+    if (cleanLow.startsWith(filler)) {
+      trimmed = raw.slice(filler.length).replace(/^[:\s,-?]+/, '');
+      break;
+    }
+  }
+
+  let words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length === 0) words = raw.split(/\s+/).slice(0, 5);
+  const titleWords = words.slice(0, 5).map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+  const result = titleWords.join(' ').replace(/[.,?!:;-]+$/, '').trim();
+  return result ? result.slice(0, 38) : 'New Chat';
+}
+
 export function ChatProvider({ children }) {
   const { isAuthenticated, loading: authLoading, setIsAuthModalOpen, logout } = useAuth();
-  const [conversations, setConversations] = useState([]);
+  const [conversations, setConversations] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pluto_conversations');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [activeConversation, setActiveConversation] = useState(() => {
     try {
       const saved = localStorage.getItem('pluto_active_conversation');
@@ -37,8 +114,20 @@ export function ChatProvider({ children }) {
   });
   const [messages, setMessages] = useState(() => {
     try {
+      const savedConvId = localStorage.getItem('pluto_active_conv_id');
+      if (savedConvId) {
+        const convSaved = localStorage.getItem(`pluto_messages_${savedConvId}`);
+        if (convSaved) {
+          const parsed = JSON.parse(convSaved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      }
       const saved = localStorage.getItem('pluto_messages');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return [];
     } catch (e) {
       return [];
     }
@@ -84,6 +173,15 @@ export function ChatProvider({ children }) {
     }
   });
 
+  // Persist conversations to localStorage
+  useEffect(() => {
+    try {
+      if (conversations && conversations.length > 0) {
+        localStorage.setItem('pluto_conversations', JSON.stringify(conversations));
+      }
+    } catch (e) {}
+  }, [conversations]);
+
   // Persist selectedModel
   useEffect(() => {
     if (selectedModel) {
@@ -125,10 +223,14 @@ export function ChatProvider({ children }) {
   }, [activeConversation]);
 
   // Helper for safely persisting messages to localStorage without QuotaExceeded errors
-  const safeSaveMessages = useCallback((msgs) => {
-    if (!msgs || msgs.length === 0) return;
+  const safeSaveMessages = useCallback((msgs, convId = null) => {
+    if (!msgs || !Array.isArray(msgs) || msgs.length === 0) return;
+    const targetId = convId || activeConversation?.id;
     try {
       localStorage.setItem('pluto_messages', JSON.stringify(msgs));
+      if (targetId) {
+        localStorage.setItem(`pluto_messages_${targetId}`, JSON.stringify(msgs));
+      }
     } catch (err) {
       try {
         const sanitized = msgs.map((m) => {
@@ -148,20 +250,23 @@ export function ChatProvider({ children }) {
           return m;
         });
         localStorage.setItem('pluto_messages', JSON.stringify(sanitized));
+        if (targetId) {
+          localStorage.setItem(`pluto_messages_${targetId}`, JSON.stringify(sanitized));
+        }
       } catch (e) {
         console.warn('Could not cache messages to localStorage:', e);
       }
     }
-  }, []);
+  }, [activeConversation?.id]);
 
   // Sync messages to localStorage
   useEffect(() => {
     try {
       if (messages && messages.length > 0) {
-        safeSaveMessages(messages);
+        safeSaveMessages(messages, activeConversation?.id);
       }
     } catch (e) {}
-  }, [messages, safeSaveMessages]);
+  }, [messages, activeConversation?.id, safeSaveMessages]);
 
   const fetchQuota = async () => {
     try {
@@ -197,43 +302,45 @@ export function ChatProvider({ children }) {
     if (authLoading) return;
 
     if (!isAuthenticated) {
-      setConversations([]);
-      // Do NOT destroy local active messages or activeConversation on unauthenticated reload!
+      // Keep cached conversations and messages visible for guest / demo / restored state
       return;
     }
     try {
       const list = await api.listConversations(searchQuery);
-      setConversations(list);
+      if (Array.isArray(list) && list.length > 0) {
+        setConversations(list);
+        try {
+          localStorage.setItem('pluto_conversations', JSON.stringify(list));
+        } catch (e) {}
 
-      // Auto-restore active conversation if not searching
-      if (!searchQuery && list.length > 0) {
-        const savedConvId = localStorage.getItem('pluto_active_conv_id') || activeConversation?.id;
-        let targetConv = null;
-        if (savedConvId) {
-          targetConv = list.find((c) => String(c.id) === String(savedConvId));
-        }
+        // Auto-restore active conversation if not searching
+        if (!searchQuery) {
+          const savedConvId = localStorage.getItem('pluto_active_conv_id') || activeConversation?.id;
+          let targetConv = null;
+          if (savedConvId) {
+            targetConv = list.find((c) => String(c.id) === String(savedConvId));
+          }
 
-        // Target found or fall back to most recent conversation
-        const chosenConv = targetConv || list[0];
-        if (chosenConv) {
-          try {
-            const conv = await api.getConversation(chosenConv.id);
-            setActiveConversation(conv);
-            if (conv.messages && conv.messages.length > 0) {
-              setMessages(conv.messages);
-              safeSaveMessages(conv.messages);
+          const chosenConv = targetConv || activeConversation || list[0];
+          if (chosenConv) {
+            try {
+              const conv = await api.getConversation(chosenConv.id);
+              setActiveConversation(conv);
+              if (conv.messages && conv.messages.length > 0) {
+                setMessages(conv.messages);
+                safeSaveMessages(conv.messages, conv.id);
+              }
+              if (conv.model) {
+                setSelectedModel(conv.model);
+              }
+            } catch (e) {
+              console.warn('Could not re-fetch active conversation from server, using local cache:', e);
             }
-            if (conv.model) {
-              setSelectedModel(conv.model);
-            }
-          } catch (e) {
-            console.warn('Could not re-fetch active conversation:', e);
           }
         }
       }
-      // If list is empty on server, DO NOT wipe local messages! Keep existing local chat messages intact.
     } catch (err) {
-      console.error('Failed to load conversations:', err);
+      console.warn('Failed to load conversations from server, retaining local cache:', err);
     }
   };
 
@@ -246,27 +353,49 @@ export function ChatProvider({ children }) {
   // Select a conversation and load its messages
   const selectConversation = async (conversationId) => {
     setErrorMessage(null);
+
+    // 1. Instantly restore from local cache if available so UI does not flash blank
+    try {
+      const cachedMsgs = localStorage.getItem(`pluto_messages_${conversationId}`);
+      if (cachedMsgs) {
+        const parsed = JSON.parse(cachedMsgs);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
+      }
+    } catch (e) {}
+
+    const localConv = conversations.find((c) => String(c.id) === String(conversationId));
+    if (localConv) {
+      setActiveConversation(localConv);
+      try {
+        localStorage.setItem('pluto_active_conversation', JSON.stringify(localConv));
+        localStorage.setItem('pluto_active_conv_id', String(localConv.id));
+      } catch (e) {}
+    }
+
     try {
       const conv = await api.getConversation(conversationId);
       setActiveConversation(conv);
       const convMsgs = conv.messages || [];
-      setMessages(convMsgs);
+      if (convMsgs.length > 0) {
+        setMessages(convMsgs);
+        safeSaveMessages(convMsgs, conv.id);
+      }
       try {
         localStorage.setItem('pluto_active_conversation', JSON.stringify(conv));
         localStorage.setItem('pluto_active_conv_id', String(conv.id));
-        safeSaveMessages(convMsgs);
       } catch (e) {}
       if (conv.model) {
         setSelectedModel(conv.model);
       }
       return conv;
     } catch (err) {
-      console.error('Failed to get conversation:', err);
-      try {
-        localStorage.removeItem('pluto_active_conv_id');
-        localStorage.removeItem('pluto_active_conversation');
-      } catch (e) {}
-      return createNewChat();
+      console.warn('Failed to get conversation from server, keeping local cache:', err);
+      if (localConv) {
+        return localConv;
+      }
+      return null;
     }
   };
 
@@ -276,9 +405,14 @@ export function ChatProvider({ children }) {
       setIsAuthModalOpen(true);
       return null;
     }
+    // Cache current active messages to its own ID before creating fresh chat
+    if (activeConversation?.id && messages.length > 0) {
+      safeSaveMessages(messages, activeConversation.id);
+    }
+
     try {
       const newConv = await api.createConversation('New Chat', selectedModel);
-      setConversations((prev) => [newConv, ...prev]);
+      setConversations((prev) => [newConv, ...prev.filter((c) => c.id !== newConv.id)]);
       setActiveConversation(newConv);
       setMessages([]);
       try {
@@ -301,7 +435,7 @@ export function ChatProvider({ children }) {
         is_local_fallback: true,
         created_at: new Date().toISOString(),
       };
-      setConversations((prev) => [fallbackConv, ...prev]);
+      setConversations((prev) => [fallbackConv, ...prev.filter((c) => c.id !== fallbackId)]);
       setActiveConversation(fallbackConv);
       setMessages([]);
       try {
@@ -315,16 +449,39 @@ export function ChatProvider({ children }) {
 
   // Update conversation title or pin
   const updateConversationMeta = async (id, updates) => {
+    // 1. Optimistically update local state & localStorage immediately
+    setConversations((prev) => {
+      const next = prev.map((c) => (c.id === id ? { ...c, ...updates } : c));
+      try {
+        localStorage.setItem('pluto_conversations', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+
+    if (activeConversation?.id === id) {
+      setActiveConversation((prev) => {
+        const next = { ...prev, ...updates };
+        try {
+          localStorage.setItem('pluto_active_conversation', JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+    }
+
+    // 2. Sync to server in background
     try {
       const updated = await api.updateConversation(id, updates);
-      setConversations((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, ...updated } : c))
-      );
-      if (activeConversation?.id === id) {
-        setActiveConversation((prev) => ({ ...prev, ...updated }));
+      if (updated) {
+        setConversations((prev) => {
+          const next = prev.map((c) => (c.id === id ? { ...c, ...updated } : c));
+          try {
+            localStorage.setItem('pluto_conversations', JSON.stringify(next));
+          } catch (e) {}
+          return next;
+        });
       }
     } catch (err) {
-      console.error('Failed to update conversation:', err);
+      console.warn('Backend updateConversation warning (retained locally):', err);
     }
   };
 
@@ -332,23 +489,29 @@ export function ChatProvider({ children }) {
   const deleteConversation = async (id) => {
     try {
       await api.deleteConversation(id);
-      const remaining = conversations.filter((c) => c.id !== id);
-      setConversations(remaining);
-      if (activeConversation?.id === id) {
-        if (remaining.length > 0) {
-          await selectConversation(remaining[0].id);
-        } else {
-          setActiveConversation(null);
-          setMessages([]);
-          try {
-            localStorage.removeItem('pluto_active_conversation');
-            localStorage.removeItem('pluto_active_conv_id');
-            localStorage.removeItem('pluto_messages');
-          } catch (e) {}
-        }
-      }
     } catch (err) {
-      console.error('Failed to delete conversation:', err);
+      console.warn('Backend deleteConversation warning:', err);
+    }
+
+    const remaining = conversations.filter((c) => c.id !== id);
+    setConversations(remaining);
+    try {
+      localStorage.setItem('pluto_conversations', JSON.stringify(remaining));
+      localStorage.removeItem(`pluto_messages_${id}`);
+    } catch (e) {}
+
+    if (activeConversation?.id === id) {
+      if (remaining.length > 0) {
+        await selectConversation(remaining[0].id);
+      } else {
+        setActiveConversation(null);
+        setMessages([]);
+        try {
+          localStorage.removeItem('pluto_active_conversation');
+          localStorage.removeItem('pluto_active_conv_id');
+          localStorage.removeItem('pluto_messages');
+        } catch (e) {}
+      }
     }
   };
 
@@ -376,13 +539,13 @@ export function ChatProvider({ children }) {
 
     setErrorMessage(null);
 
-    // If no active conversation or if current conversation was corrupted/errored or local fallback, create a fresh one
+    // If no active conversation or if current conversation was corrupted/errored, create a fresh one
     let currentConv = activeConversation;
     const hasConvError = messages.some((m) => m.content && (m.content.toLowerCase().includes('conversation not found') || m.content.toLowerCase().includes('not found')));
-    if (!currentConv || hasConvError || currentConv.is_local_fallback) {
+    if (!currentConv || hasConvError) {
       currentConv = await createNewChat();
     }
-    if (!currentConv || currentConv.is_local_fallback) {
+    if (!currentConv) {
       try {
         currentConv = await api.createConversation('New Chat', selectedModel);
         setActiveConversation(currentConv);
@@ -428,6 +591,23 @@ export function ChatProvider({ children }) {
         ? 'Please analyze this attached image thoroughly and solve any questions or explain all visible details.'
         : 'Please review and summarize the attached document.'
     );
+
+    // Assign smart relevant title immediately if first message or default title
+    const isDefaultTitle = !currentConv.title || currentConv.title === 'New Chat' || currentConv.title === 'Untitled' || currentConv.title === 'Live Test';
+    if (isDefaultTitle) {
+      const smartTitle = generateSmartTitle(effectiveContent);
+      currentConv = { ...currentConv, title: smartTitle };
+      setActiveConversation(currentConv);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === currentConv.id ? { ...c, title: smartTitle } : c))
+      );
+      try {
+        localStorage.setItem('pluto_active_conversation', JSON.stringify(currentConv));
+        const storedConvs = JSON.parse(localStorage.getItem('pluto_conversations') || '[]');
+        const updatedList = storedConvs.map((c) => (c.id === currentConv.id ? { ...c, title: smartTitle } : c));
+        localStorage.setItem('pluto_conversations', JSON.stringify(updatedList));
+      } catch (e) {}
+    }
 
     // Add optimistic user message to local state
     const optimisticUserMsg = {
