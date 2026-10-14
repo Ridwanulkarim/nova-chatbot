@@ -115,7 +115,7 @@ class Settings(BaseSettings):
     DEFAULT_MODEL: str = "gemini-3.5-flash"
     DEFAULT_PROVIDER: str = "gemini"
     
-    CORS_ORIGINS: str = "http://localhost:5180,http://127.0.0.1:5180,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,https://pluto-chatbot-3gfbb3cqn-ridwanulkarims-projects.vercel.app,https://pluto-chatbot-it29af1oe-ridwanulkarims-projects.vercel.app,https://pluto-chatbot.vercel.app"
+    CORS_ORIGINS: str = "http://localhost:5180,http://127.0.0.1:5180,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,https://pluto-chatbot-3gfbb3cqn-ridwanulkarims-projects.vercel.app,https://pluto-chatbot-it29af1oe-ridwanulkarims-projects.vercel.app"
     UPLOAD_DIR: str = get_default_upload_dir()
     MAX_UPLOAD_SIZE_MB: int = 50
     DAILY_MESSAGE_LIMIT: int = 50
