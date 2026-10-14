@@ -18,6 +18,11 @@ for c in candidates:
 
 try:
     from app.main import app
+
+    @app.get("/api/ping")
+    @app.get("/ping")
+    def ping():
+        return {"status": "ok", "message": "Pluto AI backend is running on Vercel"}
 except Exception as exc:
     err_tb = traceback.format_exc()
     print("FATAL: Failed to import app.main:\n", err_tb, file=sys.stderr)
