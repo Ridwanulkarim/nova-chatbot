@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 import asyncio
 import uuid
 import base64
@@ -20,6 +21,8 @@ from app.ai.provider_factory import ai_factory
 from app.ai.search_service import search_service
 from app.ai.rag_service import rag_service
 from app.core.config import settings
+
+logger = logging.getLogger("pluto.messages")
 
 router = APIRouter()
 
@@ -160,6 +163,16 @@ async def stream_message(
                     memory_items = [m.content for m in mems if m.content]
         except Exception:
             pass
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"Error preparing stream message in conversation {conversation_id}: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Message setup failed: {str(exc)}"
+        )
     finally:
         db.close()
 
