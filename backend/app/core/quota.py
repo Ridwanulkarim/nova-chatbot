@@ -85,20 +85,18 @@ def check_and_consume_image_quota(db: Session, user_id: str):
 
 def refund_message_quota(db: Session, user_id: str):
     today_str = get_today_str()
-    usage = db.query(UserDailyUsage).filter(
+    db.query(UserDailyUsage).filter(
         UserDailyUsage.user_id == user_id,
-        UserDailyUsage.usage_date == today_str
-    ).first()
-    if usage and usage.message_count > 0:
-        usage.message_count -= 1
-        db.commit()
+        UserDailyUsage.usage_date == today_str,
+        UserDailyUsage.message_count > 0
+    ).update({"message_count": UserDailyUsage.message_count - 1})
+    db.commit()
 
 def refund_image_quota(db: Session, user_id: str):
     today_str = get_today_str()
-    usage = db.query(UserDailyUsage).filter(
+    db.query(UserDailyUsage).filter(
         UserDailyUsage.user_id == user_id,
-        UserDailyUsage.usage_date == today_str
-    ).first()
-    if usage and usage.image_count > 0:
-        usage.image_count -= 1
-        db.commit()
+        UserDailyUsage.usage_date == today_str,
+        UserDailyUsage.image_count > 0
+    ).update({"image_count": UserDailyUsage.image_count - 1})
+    db.commit()

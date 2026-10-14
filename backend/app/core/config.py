@@ -155,6 +155,10 @@ if not settings.GEMINI_API_KEY and settings.GROQ_API_KEY:
     settings.DEFAULT_MODEL = "openai/gpt-oss-120b"
     settings.DEFAULT_PROVIDER = "groq"
 
+# Auto-detect S3/R2 storage backend if S3 credentials are provided
+if settings.S3_BUCKET_NAME and settings.STORAGE_BACKEND == "local":
+    settings.STORAGE_BACKEND = "s3"
+
 
 def validate_production_security(s: Settings) -> None:
     """Enforce strict production security rules: fail-fast on startup if secrets are default or unconfigured."""

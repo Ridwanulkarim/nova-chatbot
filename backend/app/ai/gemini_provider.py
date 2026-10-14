@@ -206,11 +206,12 @@ class GeminiProvider(BaseAIProvider):
         start_time = time.time()
 
         def sync_fetch():
+            current_req = req
             max_retries = 2
             try:
                 for attempt in range(max_retries + 1):
                     try:
-                        with urllib.request.urlopen(req, timeout=40) as resp:
+                        with urllib.request.urlopen(current_req, timeout=40) as resp:
                             for line in resp:
                                 decoded = line.decode("utf-8").strip()
                                 if decoded.startswith("data: "):
@@ -264,6 +265,10 @@ class GeminiProvider(BaseAIProvider):
                         if e.code in (503, 429) and attempt < max_retries:
                             logger.warning(f"Gemini temporary error {e.code}. Retrying attempt {attempt + 1}/{max_retries} after 1.5s...")
                             time.sleep(1.5)
+                            # Switch to alternate active model on high demand
+                            if e.code == 503 and "gemini-3.5-flash" in current_req.full_url:
+                                fallback_url = current_req.full_url.replace("gemini-3.5-flash", "gemini-3-flash-preview")
+                                current_req = urllib.request.Request(fallback_url, data=data, headers=current_req.headers)
                             continue
                         err_body = ""
                         try:
