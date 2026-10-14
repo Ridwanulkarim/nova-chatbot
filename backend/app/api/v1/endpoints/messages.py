@@ -93,10 +93,23 @@ async def stream_message(
             Conversation.user_id == current_user.id
         ).first()
         if not conv:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Conversation not found"
+            # Prevent IDOR: check if conversation belongs to another user
+            other_conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+            if other_conv and other_conv.user_id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Conversation not found"
+                )
+            # Seamlessly recreate conversation for current_user if missing (e.g. serverless cold start)
+            conv = Conversation(
+                id=conversation_id,
+                user_id=current_user.id,
+                title="New Chat",
+                model=msg_in.model or settings.DEFAULT_MODEL
             )
+            db.add(conv)
+            db.commit()
+            db.refresh(conv)
 
         # Consume quota according to request type (do not double-deduct)
         if is_img_prompt:

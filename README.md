@@ -1,10 +1,10 @@
 # Pluto AI - Production-Grade Full-Stack AI Chatbot
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-success?style=for-the-badge&logo=vercel)](https://pluto-chatbot-it29af1oe-ridwanulkarims-projects.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-success?style=for-the-badge&logo=vercel)](https://pluto-chatbot-3gfbb3cqn-ridwanulkarims-projects.vercel.app/)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-blue?style=for-the-badge&logo=github)](https://github.com/Ridwanulkarim/pluto-chatbot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-> 🚀 **Live Production URL**: [https://pluto-chatbot-it29af1oe-ridwanulkarims-projects.vercel.app/](https://pluto-chatbot-it29af1oe-ridwanulkarims-projects.vercel.app/)  
+> 🚀 **Live Production URL**: [https://pluto-chatbot-3gfbb3cqn-ridwanulkarims-projects.vercel.app/](https://pluto-chatbot-3gfbb3cqn-ridwanulkarims-projects.vercel.app/)  
 > *(Production Domain: [https://pluto-chatbot.vercel.app/](https://pluto-chatbot.vercel.app/))*
 
 Pluto AI is a full-stack, autonomous AI conversational platform engineered with FastAPI, React 18, Tailwind CSS, and SQLAlchemy. Inspired by the best of ChatGPT, Claude, and Gemini, Pluto AI delivers a responsive dark-themed workspace, real-time Server-Sent Events (SSE) token streaming, multi-provider LLM abstraction (OpenAI, Groq, Gemini, Ollama), Retrieval-Augmented Generation (RAG) for document Q&A, real-time web search with source citations, and user-isolated persistent storage.

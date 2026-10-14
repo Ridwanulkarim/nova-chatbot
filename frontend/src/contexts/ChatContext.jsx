@@ -123,16 +123,44 @@ export function ChatProvider({ children }) {
     } catch (e) {}
   }, [activeConversation]);
 
+  // Helper for safely persisting messages to localStorage without QuotaExceeded errors
+  const safeSaveMessages = useCallback((msgs) => {
+    if (!msgs || msgs.length === 0) return;
+    try {
+      localStorage.setItem('pluto_messages', JSON.stringify(msgs));
+    } catch (err) {
+      try {
+        const sanitized = msgs.map((m) => {
+          if (!m.attachments) return m;
+          try {
+            const parsed = typeof m.attachments === 'string' ? JSON.parse(m.attachments) : m.attachments;
+            if (Array.isArray(parsed)) {
+              const lighter = parsed.map((a) => {
+                if (a.data_url && a.data_url.length > 2000) {
+                  return { ...a, data_url: a.url || a.filename || 'stored_image' };
+                }
+                return a;
+              });
+              return { ...m, attachments: JSON.stringify(lighter) };
+            }
+          } catch (e) {}
+          return m;
+        });
+        localStorage.setItem('pluto_messages', JSON.stringify(sanitized));
+      } catch (e) {
+        console.warn('Could not cache messages to localStorage:', e);
+      }
+    }
+  }, []);
+
   // Sync messages to localStorage
   useEffect(() => {
     try {
       if (messages && messages.length > 0) {
-        localStorage.setItem('pluto_messages', JSON.stringify(messages));
-      } else if (!activeConversation) {
-        localStorage.removeItem('pluto_messages');
+        safeSaveMessages(messages);
       }
     } catch (e) {}
-  }, [messages, activeConversation]);
+  }, [messages, safeSaveMessages]);
 
   const fetchQuota = async () => {
     try {
@@ -169,13 +197,7 @@ export function ChatProvider({ children }) {
 
     if (!isAuthenticated) {
       setConversations([]);
-      setActiveConversation(null);
-      setMessages([]);
-      try {
-        localStorage.removeItem('pluto_active_conversation');
-        localStorage.removeItem('pluto_active_conv_id');
-        localStorage.removeItem('pluto_messages');
-      } catch (e) {}
+      // Do NOT destroy local active messages or activeConversation on unauthenticated reload!
       return;
     }
     try {
@@ -190,13 +212,15 @@ export function ChatProvider({ children }) {
           targetConv = list.find((c) => String(c.id) === String(savedConvId));
         }
 
-        // If target exists in list, sync latest messages from backend
-        if (targetConv) {
+        // Target found or fall back to most recent conversation
+        const chosenConv = targetConv || list[0];
+        if (chosenConv) {
           try {
-            const conv = await api.getConversation(targetConv.id);
+            const conv = await api.getConversation(chosenConv.id);
             setActiveConversation(conv);
-            if (conv.messages) {
+            if (conv.messages && conv.messages.length > 0) {
               setMessages(conv.messages);
+              safeSaveMessages(conv.messages);
             }
             if (conv.model) {
               setSelectedModel(conv.model);
@@ -204,28 +228,9 @@ export function ChatProvider({ children }) {
           } catch (e) {
             console.warn('Could not re-fetch active conversation:', e);
           }
-        } else if (!savedConvId && (!messages || messages.length === 0)) {
-          // If no active conversation saved and no messages currently showing, pick latest
-          const latest = list[0];
-          try {
-            const conv = await api.getConversation(latest.id);
-            setActiveConversation(conv);
-            setMessages(conv.messages || []);
-            if (conv.model) {
-              setSelectedModel(conv.model);
-            }
-          } catch (e) {}
         }
-      } else if (!searchQuery && list.length === 0) {
-        // Clear stale local storage if no conversations exist on server
-        try {
-          localStorage.removeItem('pluto_active_conv_id');
-          localStorage.removeItem('pluto_active_conversation');
-          localStorage.removeItem('pluto_messages');
-        } catch (e) {}
-        setActiveConversation(null);
-        setMessages([]);
       }
+      // If list is empty on server, DO NOT wipe local messages! Keep existing local chat messages intact.
     } catch (err) {
       console.error('Failed to load conversations:', err);
     }
@@ -248,7 +253,7 @@ export function ChatProvider({ children }) {
       try {
         localStorage.setItem('pluto_active_conversation', JSON.stringify(conv));
         localStorage.setItem('pluto_active_conv_id', String(conv.id));
-        localStorage.setItem('pluto_messages', JSON.stringify(convMsgs));
+        safeSaveMessages(convMsgs);
       } catch (e) {}
       if (conv.model) {
         setSelectedModel(conv.model);
