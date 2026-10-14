@@ -406,7 +406,7 @@ export function ChatArea({
       </header>
 
       {/* Error notification banner */}
-      {errorMessage && !errorMessage.toLowerCase().includes('not found') && !errorMessage.toLowerCase().includes('conversation') && !errorMessage.includes('404') && (
+      {errorMessage && !errorMessage.toLowerCase().includes('conversation not found') && !errorMessage.includes('404') && (
         <div className="bg-rose-950/90 border-b border-rose-800 px-4 py-2.5 flex items-center justify-between text-xs text-rose-200">
           <div className="flex items-center gap-2">
             <AlertCircle size={15} className="text-rose-400 flex-shrink-0" />
