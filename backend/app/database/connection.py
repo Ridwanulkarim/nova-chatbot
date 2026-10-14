@@ -11,7 +11,11 @@ def redact_db_url(url_str: str) -> str:
     if not url_str or not isinstance(url_str, str):
         return ""
     try:
-        clean = url_str.strip()
+        clean = url_str.strip().strip("\"'")
+        if clean.startswith("DATABASE_URL="):
+            clean = clean.split("DATABASE_URL=", 1)[1].strip().strip("\"'")
+        elif clean.startswith("database_url="):
+            clean = clean.split("database_url=", 1)[1].strip().strip("\"'")
         if clean.startswith("postgres://"):
             clean = clean.replace("postgres://", "postgresql://", 1)
         return make_url(clean).render_as_string(hide_password=True)
@@ -49,7 +53,11 @@ def configure_database_connection(
     if not raw_url or not isinstance(raw_url, str):
         raise ValueError("DATABASE_URL must be a non-empty string")
 
-    clean_raw = raw_url.strip()
+    clean_raw = raw_url.strip().strip("\"'")
+    if clean_raw.startswith("DATABASE_URL="):
+        clean_raw = clean_raw.split("DATABASE_URL=", 1)[1].strip().strip("\"'")
+    elif clean_raw.startswith("database_url="):
+        clean_raw = clean_raw.split("database_url=", 1)[1].strip().strip("\"'")
 
     if is_vercel is None:
         from app.core.config import is_running_on_vercel

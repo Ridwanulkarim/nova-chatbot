@@ -155,9 +155,16 @@ settings.OPENAI_API_KEY = _clean_key(settings.OPENAI_API_KEY) or _read_env_val("
 settings.GROQ_API_KEY = _clean_key(settings.GROQ_API_KEY) or _read_env_val("GROQ_API_KEY")
 settings.GEMINI_API_KEY = _clean_key(settings.GEMINI_API_KEY) or _read_env_val("GEMINI_API_KEY")
 
-# Normalize postgres:// to postgresql:// for standard SQLAlchemy compatibility
-if settings.DATABASE_URL and settings.DATABASE_URL.startswith("postgres://"):
-    settings.DATABASE_URL = settings.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+# Clean and normalize DATABASE_URL
+if settings.DATABASE_URL:
+    clean_db = settings.DATABASE_URL.strip().strip("\"'")
+    if clean_db.startswith("DATABASE_URL="):
+        clean_db = clean_db.split("DATABASE_URL=", 1)[1].strip().strip("\"'")
+    elif clean_db.startswith("database_url="):
+        clean_db = clean_db.split("database_url=", 1)[1].strip().strip("\"'")
+    if clean_db.startswith("postgres://"):
+        clean_db = clean_db.replace("postgres://", "postgresql://", 1)
+    settings.DATABASE_URL = clean_db
 
 if not settings.GEMINI_API_KEY and settings.GROQ_API_KEY:
     settings.DEFAULT_MODEL = "openai/gpt-oss-120b"
