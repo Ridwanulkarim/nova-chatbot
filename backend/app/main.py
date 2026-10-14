@@ -25,10 +25,11 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS Middleware - Restrict strictly to configured CORS origins
+# CORS Middleware - Restrict strictly to configured CORS origins + dynamic Vercel deployments
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

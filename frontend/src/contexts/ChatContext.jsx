@@ -386,7 +386,7 @@ export function ChatProvider({ children }) {
         currentConv = await api.createConversation('New Chat', selectedModel);
         setActiveConversation(currentConv);
       } catch (err) {
-        setErrorMessage('Failed to connect to chat session. Please refresh the page and try again.');
+        setErrorMessage(err.message || 'Failed to connect to chat session. Please refresh the page and try again.');
         return;
       }
     }

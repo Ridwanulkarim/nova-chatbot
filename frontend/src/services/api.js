@@ -126,7 +126,10 @@ export const api = {
     const res = await fetch(`${API_BASE}/conversations${q}`, {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to load conversations');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(extractErrorMessage(err, `Server error (${res.status}): Failed to load conversations`));
+    }
     return res.json();
   },
 
@@ -136,7 +139,10 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ title, model }),
     });
-    if (!res.ok) throw new Error('Failed to create conversation');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(extractErrorMessage(err, `Server error (${res.status}): Failed to create conversation`));
+    }
     return res.json();
   },
 
