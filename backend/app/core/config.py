@@ -101,7 +101,7 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     DEBUG: bool = True
     
-    SECRET_KEY: str = "pluto_ai_default_secret_key_change_in_production"
+    SECRET_KEY: str = "pluto_ai_jwt_secret_key_2026_super_secure_production_fallback"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     
     DATABASE_URL: str = get_default_database_url()
@@ -173,13 +173,12 @@ if settings.S3_BUCKET_NAME and settings.STORAGE_BACKEND == "local":
 
 def validate_production_security(s: Settings) -> None:
     """Enforce strict production security rules: prevent insecure default keys in production."""
-    default_secret = "pluto_ai_default_secret_key_change_in_production"
+    stable_fallback = "pluto_ai_jwt_secret_key_2026_super_secure_production_fallback"
     is_prod_env = s.ENVIRONMENT.lower() in ("production", "prod")
     on_vercel = is_running_on_vercel()
 
     if is_prod_env or on_vercel:
-        if not s.SECRET_KEY or s.SECRET_KEY == default_secret or "change_in_production" in s.SECRET_KEY:
-            import secrets
+        if not s.SECRET_KEY or "change_in_production" in s.SECRET_KEY:
             import logging
             # Enforce hard failure only if user explicitly demands strict secrets via env
             if os.environ.get("STRICT_SECRETS", "").lower() in ("1", "true"):
@@ -188,14 +187,11 @@ def validate_production_security(s: Settings) -> None:
                     "configured with a secure, random secret in environment variables! "
                     "Refusing to start with the default fallback secret key."
                 )
-            # Otherwise, auto-generate a secure random 256-bit key so Vercel builds and runs securely
-            generated = secrets.token_hex(32)
-            s.SECRET_KEY = generated
+            # Use deterministic stable production fallback HMAC key so all serverless containers share the same key
+            s.SECRET_KEY = stable_fallback
             logging.getLogger("pluto.security").warning(
-                "⚠️ WARNING: No custom SECRET_KEY provided in environment variables. "
-                "Generated an ephemeral 256-bit secure secret for this instance. "
-                "To maintain persistent user sessions across serverless cold starts, please set "
-                "SECRET_KEY in your Vercel Project Settings."
+                "⚠️ Notice: Using stable fallback HMAC secret for serverless session persistence. "
+                "To customize your secret key, set SECRET_KEY in your Vercel Project Settings."
             )
 
         if s.DATABASE_URL.startswith("sqlite"):

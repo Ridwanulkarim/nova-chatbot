@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { api } from '../services/api';
+import { api, setAuthToken } from '../services/api';
 import { streamMessage } from '../services/chatStream';
 import { useAuth } from './AuthContext';
 
@@ -24,7 +24,7 @@ export const DEFAULT_MODELS = [
 ];
 
 export function ChatProvider({ children }) {
-  const { isAuthenticated, loading: authLoading, setIsAuthModalOpen } = useAuth();
+  const { isAuthenticated, loading: authLoading, setIsAuthModalOpen, logout } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(() => {
     try {
@@ -506,6 +506,40 @@ export function ChatProvider({ children }) {
         setIsStreaming(false);
         abortControllerRef.current = null;
         const errStr = typeof err === 'string' ? err : (err?.message || '');
+
+        const isAuthErr = (
+          errStr.toLowerCase().includes('token') ||
+          errStr.toLowerCase().includes('session expired') ||
+          errStr.toLowerCase().includes('not authenticated') ||
+          errStr.includes('401')
+        );
+
+        if (isAuthErr) {
+          try {
+            if (logout) logout();
+            else setAuthToken(null);
+          } catch (e) {}
+          setIsAuthModalOpen(true);
+          const authMsg = 'Session expired. Please sign in or use the 1-click Demo Account in the popup to continue.';
+          setErrorMessage(authMsg);
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'assistant') {
+              return [
+                ...prev.slice(0, -1),
+                {
+                  ...last,
+                  content: '⚠️ **Session Expired**: Your session has expired or the security token was refreshed. Please click **"Sign In"** or use the **"⚡ One-Click Instant Guest / Demo Session"** in the popup to continue chatting.',
+                  isStreaming: false,
+                  isError: true,
+                },
+              ];
+            }
+            return prev;
+          });
+          return;
+        }
+
         const isConvErr = (
           errStr.toLowerCase().includes('conversation not found') ||
           errStr.includes('404') ||
@@ -573,6 +607,38 @@ export function ChatProvider({ children }) {
               onError: (retryErr) => {
                 setIsStreaming(false);
                 abortControllerRef.current = null;
+                const retryStr = typeof retryErr === 'string' ? retryErr : (retryErr?.message || '');
+                const isRetryAuth = (
+                  retryStr.toLowerCase().includes('token') ||
+                  retryStr.toLowerCase().includes('session expired') ||
+                  retryStr.toLowerCase().includes('not authenticated') ||
+                  retryStr.includes('401')
+                );
+                if (isRetryAuth) {
+                  try {
+                    if (logout) logout();
+                    else setAuthToken(null);
+                  } catch (e) {}
+                  setIsAuthModalOpen(true);
+                  const authMsg = 'Session expired. Please sign in or use the 1-click Demo Account in the popup to continue.';
+                  setErrorMessage(authMsg);
+                  setMessages((prev) => {
+                    const last = prev[prev.length - 1];
+                    if (last && last.role === 'assistant') {
+                      return [
+                        ...prev.slice(0, -1),
+                        {
+                          ...last,
+                          content: '⚠️ **Session Expired**: Your session has expired. Please click **"Sign In"** or use the **"⚡ One-Click Instant Guest / Demo Session"** to continue.',
+                          isStreaming: false,
+                          isError: true,
+                        },
+                      ];
+                    }
+                    return prev;
+                  });
+                  return;
+                }
                 const safeErr = typeof retryErr === 'string' && (retryErr.toLowerCase().includes('not found') || retryErr.includes('404'))
                   ? 'Connection refreshed. Please click Send to continue.'
                   : retryErr;
