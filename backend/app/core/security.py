@@ -1,4 +1,5 @@
 import os
+import sys
 import base64
 import hashlib
 import hmac
@@ -142,32 +143,49 @@ def verify_firebase_id_token(token: str) -> Optional[Dict[str, Any]]:
 
     try:
         project_id = getattr(settings, "FIREBASE_PROJECT_ID", "plutochatbot") or "plutochatbot"
+        project_id = project_id.strip().strip("\"'").replace("FIREBASE_PROJECT_ID=", "")
+        if not project_id:
+            project_id = "plutochatbot"
 
-        # Verify cryptographic signature, expiry, and audience using cached Google public certs
+        valid_project_ids = {project_id, "plutochatbot"}
+
+        # Verify cryptographic signature, expiry, and timestamp using cached Google public certs.
+        # Passing audience=None verifies the signature and expiration first without premature audience abort.
         claims = id_token.verify_firebase_token(
             token,
             _google_auth_request,
-            audience=project_id,
-            clock_skew_in_seconds=10
+            audience=None,
+            clock_skew_in_seconds=60
         )
 
         if not isinstance(claims, dict):
+            print(f"DEBUG: Firebase claims is not a dict: {type(claims)}", file=sys.stderr)
+            return None
+
+        aud = claims.get("aud")
+        iss = claims.get("iss")
+
+        # Validate that the audience is one of our recognized Firebase projects
+        if not aud or aud not in valid_project_ids:
+            print(f"DEBUG: Firebase audience mismatch: got {aud}, expected one of {valid_project_ids}", file=sys.stderr)
             return None
 
         # Explicitly validate the token issuer
-        expected_issuer = f"https://securetoken.google.com/{project_id}"
-        if claims.get("iss") != expected_issuer:
+        expected_issuer = f"https://securetoken.google.com/{aud}"
+        if iss != expected_issuer:
+            print(f"DEBUG: Token issuer mismatch: expected {expected_issuer}, got {iss}", file=sys.stderr)
             return None
 
         # Require a non-empty string subject (sub) and map it to uid for user provisioning
         sub = claims.get("sub")
         if not sub or not isinstance(sub, str) or len(sub) > 128:
+            print(f"DEBUG: Invalid token subject: {sub}", file=sys.stderr)
             return None
 
         claims["uid"] = sub
         return claims
-    except (ValueError, GoogleAuthError, Exception):
-        # Handle invalid, expired, malformed tokens, and network/transport failures safely
+    except (ValueError, GoogleAuthError, Exception) as exc:
+        print(f"DEBUG: Firebase ID token verification exception: {type(exc).__name__}: {exc}", file=sys.stderr)
         return None
 
 def verify_token(token: str) -> Optional[Dict[str, Any]]:

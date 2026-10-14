@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.database.session import get_db
+from app.database.session import get_db, is_fallback_active
 from app.ai.provider_factory import ai_factory
 from app.core.config import settings
 
@@ -12,6 +12,8 @@ def health_check(db: Session = Depends(get_db)):
     db_status = "healthy"
     try:
         db.execute(text("SELECT 1"))
+        if is_fallback_active():
+            db_status = "degraded: primary database authentication failed, running on resilient local SQLite fallback"
     except Exception as e:
         db_status = f"unhealthy: {str(e)}"
 

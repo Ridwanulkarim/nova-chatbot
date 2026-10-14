@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { api, setAuthToken } from '../services/api';
 import { streamMessage } from '../services/chatStream';
 import { useAuth } from './AuthContext';
+import { auth } from '../firebase';
 
 const ChatContext = createContext(null);
 
@@ -520,11 +521,13 @@ export function ChatProvider({ children }) {
         );
 
         if (isAuthErr) {
-          try {
-            if (logout) logout();
-            else setAuthToken(null);
-          } catch (e) {}
-          setIsAuthModalOpen(true);
+          if (!auth?.currentUser) {
+            try {
+              if (logout) logout();
+              else setAuthToken(null);
+            } catch (e) {}
+            setIsAuthModalOpen(true);
+          }
           const authMsg = 'Session expired. Please sign in or use the 1-click Demo Account in the popup to continue.';
           setErrorMessage(authMsg);
           setMessages((prev) => {

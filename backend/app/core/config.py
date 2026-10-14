@@ -166,6 +166,13 @@ if settings.DATABASE_URL:
         clean_db = clean_db.replace("postgres://", "postgresql://", 1)
     settings.DATABASE_URL = clean_db
 
+# Clean and normalize FIREBASE_PROJECT_ID
+if settings.FIREBASE_PROJECT_ID:
+    clean_proj = settings.FIREBASE_PROJECT_ID.strip().strip("\"'")
+    if clean_proj.startswith("FIREBASE_PROJECT_ID="):
+        clean_proj = clean_proj.split("FIREBASE_PROJECT_ID=", 1)[1].strip().strip("\"'")
+    settings.FIREBASE_PROJECT_ID = clean_proj or "plutochatbot"
+
 if not settings.GEMINI_API_KEY and settings.GROQ_API_KEY:
     settings.DEFAULT_MODEL = "openai/gpt-oss-120b"
     settings.DEFAULT_PROVIDER = "groq"

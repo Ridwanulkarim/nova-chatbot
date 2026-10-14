@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   onAuthStateChanged,
+  onIdTokenChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
@@ -22,7 +23,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Listen to Firebase authentication state changes
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
           const token = await firebaseUser.getIdToken();
@@ -60,7 +61,22 @@ export function AuthProvider({ children }) {
       }
     });
 
-    return () => unsubscribe();
+    // Listen to Firebase token refresh events so the token never expires in localStorage
+    const unsubscribeToken = onIdTokenChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const freshToken = await firebaseUser.getIdToken();
+          setAuthToken(freshToken);
+        } catch (e) {
+          console.warn('Could not refresh Firebase ID token on change:', e);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribeToken();
+    };
   }, []);
 
   const loginWithEmail = async (email, password) => {

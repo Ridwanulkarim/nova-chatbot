@@ -1,3 +1,5 @@
+import { auth } from '../firebase';
+
 export const getApiHost = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
@@ -37,6 +39,35 @@ export const setAuthToken = (token) => {
   }
 };
 
+/**
+ * Dynamically retrieve a valid Firebase ID token.
+ * If token is expired or close to expiring, Firebase will automatically refresh it via Google STS.
+ * If forceRefresh is true, forces an immediate token exchange with Google.
+ */
+export const getFreshAuthToken = async (forceRefresh = false) => {
+  try {
+    if (auth && auth.currentUser) {
+      const freshToken = await auth.currentUser.getIdToken(forceRefresh);
+      if (freshToken) {
+        setAuthToken(freshToken);
+        return freshToken;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not refresh Firebase ID token:', err);
+  }
+  return getAuthToken();
+};
+
+export const getHeaders = async (extra = {}, forceRefresh = false) => {
+  const headers = { ...extra };
+  const token = await getFreshAuthToken(forceRefresh);
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+};
+
 export const extractErrorMessage = (err, fallback = 'Operation failed') => {
   if (!err) return fallback;
   if (typeof err === 'string') return err;
@@ -54,13 +85,24 @@ export const extractErrorMessage = (err, fallback = 'Operation failed') => {
   return fallback;
 };
 
-const getHeaders = (extra = {}) => {
-  const headers = { ...extra };
-  const token = getAuthToken();
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+/**
+ * Resilient authenticated fetch with automated 401 token refresh & retry.
+ */
+export const fetchWithAuth = async (url, options = {}, allowRetry = true) => {
+  const headers = await getHeaders(options.headers || {});
+  let res = await fetch(url, { ...options, headers });
+
+  // If 401 Unauthorized occurs and Firebase user exists, force token refresh and retry once
+  if (res.status === 401 && allowRetry && auth?.currentUser) {
+    try {
+      const freshHeaders = await getHeaders(options.headers || {}, true);
+      res = await fetch(url, { ...options, headers: freshHeaders });
+    } catch (retryErr) {
+      console.warn('Authenticated fetch retry error:', retryErr);
+    }
   }
-  return headers;
+
+  return res;
 };
 
 export const api = {
@@ -92,25 +134,21 @@ export const api = {
   },
 
   async getMe() {
-    const res = await fetch(`${API_BASE}/auth/me`, {
-      headers: getHeaders(),
-    });
+    const res = await fetchWithAuth(`${API_BASE}/auth/me`);
     if (!res.ok) throw new Error('Session expired');
     return res.json();
   },
 
   async getQuota() {
-    const res = await fetch(`${API_BASE}/auth/quota`, {
-      headers: getHeaders(),
-    });
+    const res = await fetchWithAuth(`${API_BASE}/auth/quota`);
     if (!res.ok) return null;
     return res.json();
   },
 
   async generateImage(prompt, conversationId = null) {
-    const res = await fetch(`${API_BASE}/images/generate`, {
+    const res = await fetchWithAuth(`${API_BASE}/images/generate`, {
       method: 'POST',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, conversation_id: conversationId }),
     });
     if (!res.ok) {
@@ -123,9 +161,7 @@ export const api = {
   // Conversations
   async listConversations(search = '') {
     const q = search ? `?search=${encodeURIComponent(search)}` : '';
-    const res = await fetch(`${API_BASE}/conversations${q}`, {
-      headers: getHeaders(),
-    });
+    const res = await fetchWithAuth(`${API_BASE}/conversations${q}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(extractErrorMessage(err, `Server error (${res.status}): Failed to load conversations`));
@@ -134,9 +170,9 @@ export const api = {
   },
 
   async createConversation(title = 'New Chat', model = null) {
-    const res = await fetch(`${API_BASE}/conversations`, {
+    const res = await fetchWithAuth(`${API_BASE}/conversations`, {
       method: 'POST',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, model }),
     });
     if (!res.ok) {
@@ -147,17 +183,15 @@ export const api = {
   },
 
   async getConversation(id) {
-    const res = await fetch(`${API_BASE}/conversations/${id}`, {
-      headers: getHeaders(),
-    });
+    const res = await fetchWithAuth(`${API_BASE}/conversations/${id}`);
     if (!res.ok) throw new Error('Failed to retrieve conversation');
     return res.json();
   },
 
   async updateConversation(id, updates) {
-    const res = await fetch(`${API_BASE}/conversations/${id}`, {
+    const res = await fetchWithAuth(`${API_BASE}/conversations/${id}`, {
       method: 'PATCH',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error('Failed to update conversation');
@@ -165,27 +199,25 @@ export const api = {
   },
 
   async deleteConversation(id) {
-    const res = await fetch(`${API_BASE}/conversations/${id}`, {
+    const res = await fetchWithAuth(`${API_BASE}/conversations/${id}`, {
       method: 'DELETE',
-      headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to delete conversation');
     return res.json();
   },
 
   async toggleShare(id) {
-    const res = await fetch(`${API_BASE}/conversations/${id}/share`, {
+    const res = await fetchWithAuth(`${API_BASE}/conversations/${id}/share`, {
       method: 'POST',
-      headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to update share settings');
     return res.json();
   },
 
   async setMessageFeedback(messageId, feedback) {
-    const res = await fetch(`${API_BASE}/conversations/${messageId}/feedback`, {
+    const res = await fetchWithAuth(`${API_BASE}/conversations/${messageId}/feedback`, {
       method: 'POST',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ feedback }),
     });
     return res.json();
@@ -193,9 +225,7 @@ export const api = {
 
   // Files & RAG
   async listDocuments() {
-    const res = await fetch(`${API_BASE}/files`, {
-      headers: getHeaders(),
-    });
+    const res = await fetchWithAuth(`${API_BASE}/files`);
     if (!res.ok) throw new Error('Failed to load documents');
     return res.json();
   },
@@ -227,7 +257,6 @@ export const api = {
             canvas.width = width;
             canvas.height = height;
             const ctx = canvas.getContext('2d');
-            // Fill white background for transparent PNGs converted to JPEG
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0, 0, width, height);
             ctx.drawImage(img, 0, 0, width, height);
@@ -248,9 +277,8 @@ export const api = {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(`${API_BASE}/files/upload`, {
+      const res = await fetchWithAuth(`${API_BASE}/files/upload`, {
         method: 'POST',
-        headers: getHeaders(),
         body: formData,
       });
       if (res.ok) {
@@ -279,9 +307,8 @@ export const api = {
   },
 
   async deleteDocument(id) {
-    const res = await fetch(`${API_BASE}/files/${id}`, {
+    const res = await fetchWithAuth(`${API_BASE}/files/${id}`, {
       method: 'DELETE',
-      headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to delete document');
     return res.json();
@@ -289,17 +316,15 @@ export const api = {
 
   // Settings & Models
   async getSettings() {
-    const res = await fetch(`${API_BASE}/settings`, {
-      headers: getHeaders(),
-    });
+    const res = await fetchWithAuth(`${API_BASE}/settings`);
     if (!res.ok) throw new Error('Failed to fetch settings');
     return res.json();
   },
 
   async updateSettings(settings) {
-    const res = await fetch(`${API_BASE}/settings`, {
+    const res = await fetchWithAuth(`${API_BASE}/settings`, {
       method: 'PATCH',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
     });
     if (!res.ok) throw new Error('Failed to update settings');
@@ -307,25 +332,21 @@ export const api = {
   },
 
   async getAvailableModels() {
-    const res = await fetch(`${API_BASE}/settings/models`, {
-      headers: getHeaders(),
-    });
+    const res = await fetchWithAuth(`${API_BASE}/settings/models`);
     if (!res.ok) throw new Error('Failed to fetch models');
     return res.json();
   },
 
   async getMemories() {
-    const res = await fetch(`${API_BASE}/settings/memories`, {
-      headers: getHeaders(),
-    });
+    const res = await fetchWithAuth(`${API_BASE}/settings/memories`);
     if (!res.ok) return [];
     return res.json();
   },
 
   async addMemory(content, category = 'preference') {
-    const res = await fetch(`${API_BASE}/settings/memories`, {
+    const res = await fetchWithAuth(`${API_BASE}/settings/memories`, {
       method: 'POST',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content, category }),
     });
     if (!res.ok) throw new Error('Failed to save memory');
@@ -333,18 +354,15 @@ export const api = {
   },
 
   async deleteMemory(id) {
-    const res = await fetch(`${API_BASE}/settings/memories/${id}`, {
+    const res = await fetchWithAuth(`${API_BASE}/settings/memories/${id}`, {
       method: 'DELETE',
-      headers: getHeaders(),
     });
     return res.json();
   },
 
   async getInstalledPlugins() {
     try {
-      const res = await fetch(`${API_BASE}/plugins/installed`, {
-        headers: getHeaders(),
-      });
+      const res = await fetchWithAuth(`${API_BASE}/plugins/installed`);
       if (!res.ok) return { installed_plugin_ids: [] };
       return res.json();
     } catch (e) {
@@ -353,9 +371,9 @@ export const api = {
   },
 
   async togglePlugin(pluginId, action) {
-    const res = await fetch(`${API_BASE}/plugins/toggle`, {
+    const res = await fetchWithAuth(`${API_BASE}/plugins/toggle`, {
       method: 'POST',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plugin_id: pluginId, action }),
     });
     if (!res.ok) throw new Error('Failed to toggle plugin');

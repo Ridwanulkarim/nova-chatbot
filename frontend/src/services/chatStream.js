@@ -1,4 +1,5 @@
-import { getAuthToken, API_HOST } from './api';
+import { getFreshAuthToken, API_HOST } from './api';
+import { auth } from '../firebase';
 
 export async function streamMessage({
   conversationId,
@@ -12,7 +13,7 @@ export async function streamMessage({
   onDone,
   onError,
 }) {
-  const token = getAuthToken();
+  let token = await getFreshAuthToken();
   const headers = {
     'Content-Type': 'application/json',
   };
@@ -20,19 +21,39 @@ export async function streamMessage({
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  const payloadBody = JSON.stringify({
+    content,
+    model,
+    web_search: webSearch,
+    file_ids: fileIds,
+    attachments,
+  });
+
   try {
-    const response = await fetch(`${API_HOST}/api/v1/conversations/${conversationId}/messages/stream`, {
+    let response = await fetch(`${API_HOST}/api/v1/conversations/${conversationId}/messages/stream`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        content,
-        model,
-        web_search: webSearch,
-        file_ids: fileIds,
-        attachments,
-      }),
+      body: payloadBody,
       signal,
     });
+
+    // If 401 Unauthorized occurs and Firebase user exists, force token refresh and retry once
+    if (response.status === 401 && auth?.currentUser) {
+      try {
+        const freshToken = await getFreshAuthToken(true);
+        if (freshToken) {
+          headers['Authorization'] = `Bearer ${freshToken}`;
+          response = await fetch(`${API_HOST}/api/v1/conversations/${conversationId}/messages/stream`, {
+            method: 'POST',
+            headers,
+            body: payloadBody,
+            signal,
+          });
+        }
+      } catch (retryErr) {
+        console.warn('Stream auth retry error:', retryErr);
+      }
+    }
 
     if (!response.ok) {
       const errJson = await response.json().catch(() => ({}));
