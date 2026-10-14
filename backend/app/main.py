@@ -25,6 +25,11 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+@app.get("/api/ping")
+@app.get("/ping")
+def ping():
+    return {"status": "ok", "message": "Pluto AI backend is running on Vercel"}
+
 # CORS Middleware - Restrict strictly to configured CORS origins + dynamic Vercel deployments
 app.add_middleware(
     CORSMiddleware,
