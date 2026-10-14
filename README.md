@@ -55,7 +55,7 @@ Pluto AI is a full-stack, autonomous AI conversational platform engineered with 
 ## 📂 Project Structure
 
 ```
-nova-ai/
+pluto-ai/
 ├── backend/
 │   ├── app/
 │   │   ├── ai/               # AI Provider abstraction, RAG, Web Search
@@ -112,18 +112,21 @@ nova-ai/
 - Node.js 18+ and npm installed
 
 ### 2. Configure Environment
-Copy `.env.example` to `.env` (or `nova_ai.env`):
+Copy `.env.example` to `.env` (or `pluto_ai.env`):
 ```bash
-cp .env.example nova_ai.env
+cp .env.example .env
 ```
 Provide your desired AI Provider API Key:
 ```env
-# Add either an OpenAI key or Groq key (or both)
-OPENAI_API_KEY=your_openai_api_key_here
+# Google Gemini API Key (Recommended for Vision & Reasoning)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Groq / OpenAI (Optional)
 GROQ_API_KEY=your_groq_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
 
 # Default model
-DEFAULT_MODEL=gpt-4o-mini
+DEFAULT_MODEL=gemini-3.5-flash
 ```
 
 ### 3. Start Backend & Frontend
@@ -179,7 +182,7 @@ All 9 test suites verify:
 ### Backend (e.g. Docker / Railway / Render / AWS)
 1. Configure `DATABASE_URL` pointing to managed PostgreSQL:
    ```env
-   DATABASE_URL=postgresql+psycopg2://user:password@pg-host:5432/nova_ai
+   DATABASE_URL=postgresql+psycopg2://user:password@pg-host:5432/pluto_ai
    ENVIRONMENT=production
    DEBUG=False
    SECRET_KEY=generate_with_python_secrets_token_hex_32
