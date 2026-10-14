@@ -292,6 +292,7 @@ export function ChatProvider({ children }) {
         model: selectedModel || 'openai/gpt-oss-120b',
         is_pinned: false,
         is_archived: false,
+        is_local_fallback: true,
         created_at: new Date().toISOString(),
       };
       setConversations((prev) => [fallbackConv, ...prev]);
@@ -369,22 +370,20 @@ export function ChatProvider({ children }) {
 
     setErrorMessage(null);
 
-    // If no active conversation or if current conversation was corrupted/errored, create a fresh one
+    // If no active conversation or if current conversation was corrupted/errored or local fallback, create a fresh one
     let currentConv = activeConversation;
     const hasConvError = messages.some((m) => m.content && (m.content.toLowerCase().includes('conversation not found') || m.content.toLowerCase().includes('not found')));
-    if (!currentConv || hasConvError) {
+    if (!currentConv || hasConvError || currentConv.is_local_fallback) {
       currentConv = await createNewChat();
     }
-    if (!currentConv) {
-      const fallbackId = (typeof crypto !== 'undefined' && crypto.randomUUID)
-        ? crypto.randomUUID()
-        : `conv-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      currentConv = {
-        id: fallbackId,
-        title: 'New Chat',
-        model: selectedModel || 'openai/gpt-oss-120b',
-      };
-      setActiveConversation(currentConv);
+    if (!currentConv || currentConv.is_local_fallback) {
+      try {
+        currentConv = await api.createConversation('New Chat', selectedModel);
+        setActiveConversation(currentConv);
+      } catch (err) {
+        setErrorMessage('Failed to connect to chat session. Please refresh the page and try again.');
+        return;
+      }
     }
 
     let finalAttachments = customAttachments || (attachedFiles.length > 0 ? [...attachedFiles] : null);

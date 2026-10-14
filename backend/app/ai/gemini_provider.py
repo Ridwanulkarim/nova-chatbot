@@ -16,6 +16,15 @@ class GeminiProvider(BaseAIProvider):
     def list_supported_models(self) -> List[Dict[str, Any]]:
         return [
             {
+                "id": "gemini-3-flash-preview",
+                "name": "Gemini 3 Flash (Google)",
+                "provider": "gemini",
+                "description": "Ultra-fast multimodal vision & deep reasoning model",
+                "context_window": 1048576,
+                "supports_vision": True,
+                "supports_streaming": True,
+            },
+            {
                 "id": "gemini-3.5-flash",
                 "name": "Gemini 3.5 Flash (Google)",
                 "provider": "gemini",
@@ -146,6 +155,7 @@ class GeminiProvider(BaseAIProvider):
         clean_model = model.replace("google/", "").replace("models/", "").strip()
         # Map legacy or deprecated model IDs to modern active ones
         model_aliases = {
+            "gemini-3-flash": "gemini-3-flash-preview",
             "gemini-2.5-flash": "gemini-3.5-flash",
             "gemini-2.0-flash": "gemini-3.5-flash",
             "gemini-1.5-flash": "gemini-3.5-flash",

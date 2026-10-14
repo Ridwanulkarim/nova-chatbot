@@ -88,29 +88,15 @@ async def stream_message(
 
     db = SessionLocal()
     try:
-        conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-        if conv:
-            if conv.user_id != current_user.id:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Conversation not found"
-                )
-        else:
-            default_mod = settings.DEFAULT_MODEL
-            try:
-                if current_user and getattr(current_user, "settings", None) and current_user.settings.default_model:
-                    default_mod = current_user.settings.default_model
-            except Exception:
-                pass
-            conv = Conversation(
-                id=conversation_id,
-                user_id=current_user.id,
-                title="New Chat",
-                model=msg_in.model or default_mod
+        conv = db.query(Conversation).filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id
+        ).first()
+        if not conv:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found"
             )
-            db.add(conv)
-            db.commit()
-            db.refresh(conv)
 
         # Consume quota according to request type (do not double-deduct)
         if is_img_prompt:
@@ -494,14 +480,20 @@ async def stream_message(
         finally:
             if not client_cancelled:
                 final_content = "".join(full_assistant_reply).strip()
-                if stream_error:
-                    # Refund message quota on generation failure
+                is_error_reply = (
+                    stream_error is not None
+                    or "**Error**:" in final_content
+                    or final_content.startswith("⚠️")
+                    or not final_content
+                )
+                if is_error_reply:
+                    # Do NOT persist error to database as an assistant reply; refund quota
                     db_ref = SessionLocal()
                     try:
                         refund_message_quota(db_ref, current_user.id)
                     finally:
                         db_ref.close()
-                elif final_content and not final_content.startswith("**Error**"):
+                else:
                     db_save = SessionLocal()
                     try:
                         assistant_msg = Message(
@@ -526,13 +518,6 @@ async def stream_message(
                         db_save.rollback()
                     finally:
                         db_save.close()
-                else:
-                    # No content generated - refund quota
-                    db_ref = SessionLocal()
-                    try:
-                        refund_message_quota(db_ref, current_user.id)
-                    finally:
-                        db_ref.close()
 
     return StreamingResponse(
         sse_event_stream(),

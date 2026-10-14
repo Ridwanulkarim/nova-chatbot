@@ -121,6 +121,15 @@ class Settings(BaseSettings):
     DAILY_MESSAGE_LIMIT: int = 50
     DAILY_IMAGE_LIMIT: int = 10
 
+    # Cloud Object Storage (optional for production persistence)
+    STORAGE_BACKEND: str = "local"  # "local", "s3", or "cloudinary"
+    S3_BUCKET_NAME: Optional[str] = None
+    S3_ACCESS_KEY_ID: Optional[str] = None
+    S3_SECRET_ACCESS_KEY: Optional[str] = None
+    S3_ENDPOINT_URL: Optional[str] = None  # e.g. Cloudflare R2 / Supabase S3 endpoint
+    S3_REGION_NAME: Optional[str] = "us-east-1"
+    CLOUDINARY_URL: Optional[str] = None
+
     @property
     def cors_origin_list(self) -> List[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
@@ -138,8 +147,38 @@ settings.OPENAI_API_KEY = _clean_key(settings.OPENAI_API_KEY) or _read_env_val("
 settings.GROQ_API_KEY = _clean_key(settings.GROQ_API_KEY) or _read_env_val("GROQ_API_KEY")
 settings.GEMINI_API_KEY = _clean_key(settings.GEMINI_API_KEY) or _read_env_val("GEMINI_API_KEY")
 
+# Normalize postgres:// to postgresql:// for SQLAlchemy compatibility (Supabase, Neon, Heroku)
+if settings.DATABASE_URL and settings.DATABASE_URL.startswith("postgres://"):
+    settings.DATABASE_URL = settings.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 if not settings.GEMINI_API_KEY and settings.GROQ_API_KEY:
     settings.DEFAULT_MODEL = "openai/gpt-oss-120b"
     settings.DEFAULT_PROVIDER = "groq"
+
+
+def validate_production_security(s: Settings) -> None:
+    """Enforce strict production security rules: fail-fast on startup if secrets are default or unconfigured."""
+    is_prod = s.ENVIRONMENT.lower() in ("production", "prod") or is_running_on_vercel()
+    default_secret = "pluto_ai_default_secret_key_change_in_production"
+
+    if is_prod:
+        if not s.SECRET_KEY or s.SECRET_KEY == default_secret or "change_in_production" in s.SECRET_KEY:
+            raise RuntimeError(
+                "FATAL CONFIGURATION ERROR: In production mode or on Vercel, SECRET_KEY must be "
+                "configured with a secure, random secret in environment variables! "
+                "Refusing to start with the default fallback secret key."
+            )
+        if s.DATABASE_URL.startswith("sqlite"):
+            import logging
+            logging.getLogger("pluto.config").warning(
+                "⚠️ WARNING: Running on Vercel/serverless with ephemeral SQLite (/tmp/pluto_ai.db). "
+                "Serverless instances reset local files on cold restart. To keep user accounts, "
+                "conversations, and documents persistent across deployments, configure the "
+                "DATABASE_URL environment variable to a managed PostgreSQL database (e.g. Supabase, Neon, AWS RDS)."
+            )
+
+
+# Execute production security check on module load
+validate_production_security(settings)
 
 

@@ -16,6 +16,7 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.ai.rag_service import rag_service
 from app.ai.vision_service import vision_service
+from app.utils.storage import storage_service
 
 router = APIRouter()
 
@@ -94,9 +95,6 @@ async def upload_document(
     except Exception:
         pass
 
-    stored_name = f"{uuid.uuid4().hex}_{clean_filename}"
-    file_path = os.path.join(settings.UPLOAD_DIR, stored_name)
-
     # Read content bytes
     content_bytes = await file.read()
     max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
@@ -106,34 +104,22 @@ async def upload_document(
             detail=f"File exceeds maximum allowed size of {settings.MAX_UPLOAD_SIZE_MB}MB"
         )
 
-    # Write file safely; fallback to temp directory if primary directory is not writable
-    write_succeeded = False
     try:
-        with open(file_path, "wb") as f:
-            f.write(content_bytes)
-        write_succeeded = True
-    except OSError:
-        file_path = os.path.join(tempfile.gettempdir(), stored_name)
-        try:
-            with open(file_path, "wb") as f:
-                f.write(content_bytes)
-            write_succeeded = True
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to save uploaded file: {str(e)}"
-            )
-
-    if not write_succeeded or not os.path.exists(file_path):
+        file_path, saved_url = storage_service.save_file(
+            content_bytes=content_bytes,
+            filename=clean_filename,
+            content_type=file.content_type
+        )
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to store uploaded file on server."
+            detail=f"Failed to store uploaded file: {str(e)}"
         )
 
     media_type = detect_media_type(ext)
     
     # Generate URL: for images, embed optimized base64 data URL so preview & native vision always work on Vercel
-    image_url = f"/uploads/{stored_name}"
+    image_url = saved_url
     if media_type == "image":
         try:
             b64 = base64.b64encode(content_bytes).decode("utf-8")
@@ -195,7 +181,7 @@ async def upload_document(
         "file_size": len(content_bytes),
         "mime_type": file.content_type or "application/octet-stream",
         "chunk_count": len(text_chunks),
-        "url": f"/uploads/{stored_name}",
+        "url": saved_url,
         "data_url": image_url if image_url.startswith("data:") else None,
         "media_type": media_type,
         "extracted_text": None,
