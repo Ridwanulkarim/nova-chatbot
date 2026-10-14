@@ -6,7 +6,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 PROJECT_ROOT = BASE_DIR.parent if BASE_DIR.name == "backend" else BASE_DIR
 
-def get_env_file():
+def is_running_on_vercel() -> bool:
+    return bool(
+        os.environ.get("VERCEL")
+        or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+        or os.environ.get("LAMBDA_TASK_ROOT")
+    )
+
+
+def get_env_file() -> Optional[str]:
+    if is_running_on_vercel():
+        return None
     candidates = [
         PROJECT_ROOT / ".env",
         BASE_DIR / ".env",
@@ -23,17 +33,9 @@ def get_env_file():
                 return str(p)
         except Exception:
             continue
-    return str(PROJECT_ROOT / ".env")
+    return None
 
 ENV_PATH = get_env_file()
-
-
-def is_running_on_vercel() -> bool:
-    return bool(
-        os.environ.get("VERCEL")
-        or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
-        or os.environ.get("LAMBDA_TASK_ROOT")
-    )
 
 
 def get_default_upload_dir() -> str:
@@ -70,6 +72,8 @@ def _clean_key(val: Optional[str]) -> Optional[str]:
 
 
 def _read_env_val(key_name: str) -> Optional[str]:
+    if is_running_on_vercel():
+        return None
     # Check candidate env files directly if os.environ has placeholder or missing
     candidates = [
         ENV_PATH,
@@ -139,8 +143,8 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
     model_config = SettingsConfigDict(
-        env_file=str(ENV_PATH),
-        env_file_encoding="utf-8",
+        env_file=str(ENV_PATH) if ENV_PATH else None,
+        env_file_encoding="utf-8" if ENV_PATH else None,
         extra="ignore"
     )
 
