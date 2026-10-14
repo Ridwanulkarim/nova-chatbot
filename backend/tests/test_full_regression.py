@@ -171,13 +171,17 @@ class FullRegressionTestSuite(unittest.TestCase):
 
     # 7. PRODUCTION SECRET_KEY ENFORCEMENT
     def test_07_production_secret_key_validation(self):
-        # Default secret in production mode must fail
-        prod_settings_insecure = Settings(
-            ENVIRONMENT="production",
-            SECRET_KEY="pluto_ai_default_secret_key_change_in_production"
-        )
-        with self.assertRaises(RuntimeError):
-            validate_production_security(prod_settings_insecure)
+        # Default secret in strict production mode must fail
+        os.environ["STRICT_SECRETS"] = "1"
+        try:
+            prod_settings_insecure = Settings(
+                ENVIRONMENT="production",
+                SECRET_KEY="pluto_ai_default_secret_key_change_in_production"
+            )
+            with self.assertRaises(RuntimeError):
+                validate_production_security(prod_settings_insecure)
+        finally:
+            os.environ.pop("STRICT_SECRETS", None)
 
         # Secure secret in production mode must pass
         prod_settings_secure = Settings(

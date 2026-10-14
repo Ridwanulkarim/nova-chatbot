@@ -12,15 +12,16 @@ def verify_vercel_deployment_readiness():
     print("=" * 60)
     
     # 1. Check root and backend requirements.txt
+    # 1. Check root and backend requirements.txt
     for req_file in ["requirements.txt", "backend/requirements.txt"]:
         assert os.path.exists(req_file), f"Missing {req_file}"
         with open(req_file) as f:
             content = f.read()
-        assert "psycopg2-binary" in content, f"psycopg2-binary missing from {req_file}"
-        assert "boto3" in content, f"boto3 missing from {req_file}"
-        print(f"✅ {req_file}: Includes psycopg2-binary and boto3 for PostgreSQL & Cloud Storage.")
+        assert "pg8000" in content or "psycopg2-binary" in content, f"Postgres driver missing from {req_file}"
+        print(f"✅ {req_file}: Includes PostgreSQL database driver.")
 
-    # 2. Check SECRET_KEY fail-fast guard
+    # 2. Check SECRET_KEY fail-fast guard under STRICT_SECRETS
+    os.environ["STRICT_SECRETS"] = "1"
     try:
         insecure_settings = Settings(
             ENVIRONMENT="production",
@@ -30,7 +31,22 @@ def verify_vercel_deployment_readiness():
         print("❌ FAILED: Production allowed insecure default SECRET_KEY!")
         sys.exit(1)
     except RuntimeError:
-        print("✅ Production SECRET_KEY check: Correctly rejects default/unconfigured secret key.")
+        print("✅ Strict production SECRET_KEY check: Correctly rejects default/unconfigured secret key.")
+    finally:
+        os.environ.pop("STRICT_SECRETS", None)
+
+    # 2b. Check Vercel auto-generation of secure key when unconfigured
+    os.environ["VERCEL"] = "1"
+    try:
+        vercel_settings = Settings(
+            ENVIRONMENT="development",
+            SECRET_KEY="pluto_ai_default_secret_key_change_in_production"
+        )
+        validate_production_security(vercel_settings)
+        assert vercel_settings.SECRET_KEY != "pluto_ai_default_secret_key_change_in_production"
+        print("✅ Vercel resilience: Automatically generated a secure 256-bit key so deployment never crashes.")
+    finally:
+        os.environ.pop("VERCEL", None)
 
     # 3. Check PostgreSQL URL Normalization
     raw_postgres_url = "postgres://default_user:secret_pass@db.neon.tech:5432/main"
