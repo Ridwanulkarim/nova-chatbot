@@ -349,6 +349,30 @@ export function ChatProvider({ children }) {
             }
           }
         }
+      } else if (!searchQuery) {
+        // Server returned empty list (e.g. serverless cold container)
+        // Fall back to local storage cache so user never loses messages on this device
+        try {
+          const cachedConvs = localStorage.getItem('pluto_conversations');
+          if (cachedConvs) {
+            const parsed = JSON.parse(cachedConvs);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setConversations(parsed);
+              const savedConvId = localStorage.getItem('pluto_active_conv_id') || activeConversation?.id;
+              const target = (savedConvId && parsed.find((c) => String(c.id) === String(savedConvId))) || parsed[0];
+              if (target && (!activeConversation || activeConversation.id !== target.id)) {
+                setActiveConversation(target);
+              }
+              const savedMsgs = localStorage.getItem(`pluto_messages_${target?.id}`) || localStorage.getItem('pluto_messages');
+              if (savedMsgs) {
+                const parsedMsgs = JSON.parse(savedMsgs);
+                if (Array.isArray(parsedMsgs) && parsedMsgs.length > 0 && messages.length === 0) {
+                  setMessages(parsedMsgs);
+                }
+              }
+            }
+          }
+        } catch (e) {}
       }
     } catch (err) {
       console.warn('Failed to load conversations from server, retaining local cache:', err);
