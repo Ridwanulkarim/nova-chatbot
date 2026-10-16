@@ -33,27 +33,38 @@ def ping():
 @app.get("/api/db-status")
 @app.get("/api/v1/db-status")
 def db_status():
-    from app.database.session import get_db, is_fallback_active, get_fallback_reason, normalized_url, redact_db_url
-    from sqlalchemy import inspect
     try:
-        db_gen = get_db()
-        db_session = next(db_gen)
-        inspector = inspect(db_session.get_bind())
-        tables = inspector.get_table_names()
-        fallback = is_fallback_active()
+        from app.database import session as db_session_module
+        from sqlalchemy import inspect
+        
+        db_gen = db_session_module.get_db()
+        db = next(db_gen)
+        
+        fallback = db_session_module.is_fallback_active()
+        reason = db_session_module.get_fallback_reason()
+        configured_url = db_session_module.redact_db_url(db_session_module.normalized_url)
+        
+        try:
+            inspector = inspect(db.get_bind())
+            tables = inspector.get_table_names()
+        except Exception as insp_err:
+            tables = [f"Inspection error: {insp_err}"]
+            
         return {
             "status": "connected",
             "is_fallback": fallback,
-            "fallback_reason": get_fallback_reason(),
-            "database_type": "sqlite" if fallback or "sqlite" in normalized_url else "postgresql",
-            "configured_url": redact_db_url(normalized_url),
+            "fallback_reason": reason,
+            "database_type": "sqlite" if fallback or "sqlite" in configured_url else "postgresql",
+            "configured_url": configured_url,
             "tables": tables,
         }
     except Exception as e:
+        import traceback
         return {
             "status": "error",
+            "error_type": type(e).__name__,
             "error": str(e),
-            "configured_url": redact_db_url(normalized_url),
+            "traceback": traceback.format_exc(),
         }
 
 # CORS Middleware - Restrict strictly to configured CORS origins + dynamic Vercel deployments
