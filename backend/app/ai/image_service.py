@@ -110,18 +110,45 @@ class ImageGenerationService:
                     cdn_url,
                     headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 PlutoAI/1.0"}
                 )
-                with urllib.request.urlopen(req, timeout=10) as resp:
+                with urllib.request.urlopen(req, timeout=12) as resp:
                     data = resp.read()
                     if data and len(data) > 1000:
-                        with open(file_path, "wb") as f:
-                            f.write(data)
+                        # Auto-remove bottom watermark using Pillow
+                        clean_bytes = data
+                        try:
+                            import io
+                            from PIL import Image
+                            with Image.open(io.BytesIO(data)) as raw_img:
+                                w, h = raw_img.size
+                                crop_h = max(28, int(h * 0.055))
+                                cropped = raw_img.crop((0, 0, w, h - crop_h))
+                                clean_img = cropped.resize((w, h), Image.Resampling.LANCZOS)
+                                out_buf = io.BytesIO()
+                                clean_img.save(out_buf, format="JPEG", quality=95)
+                                clean_bytes = out_buf.getvalue()
+                        except Exception as crop_err:
+                            logger.warning(f"Watermark auto-crop skipped: {crop_err}")
+
+                        # Save clean image to local upload storage
+                        try:
+                            with open(file_path, "wb") as f:
+                                f.write(clean_bytes)
+                        except Exception:
+                            pass
+
+                        # Encode clean image as base64 data URL for zero-watermark, zero-404 rendering
+                        import base64
+                        b64_str = base64.b64encode(clean_bytes).decode("utf-8")
+                        clean_data_url = f"data:image/jpeg;base64,{b64_str}"
+
                         return {
-                            "url": f"/uploads/{filename}",
+                            "url": clean_data_url,
+                            "download_url": f"/uploads/{filename}",
                             "prompt": clean_prompt,
                             "file_path": file_path,
                             "width": width,
                             "height": height,
-                            "mode": "turbo"
+                            "mode": "clean_turbo"
                         }
             except Exception as dl_err:
                 logger.warning(f"Fast Turbo image download skipped or timed out ({dl_err}), falling back to direct Turbo CDN: {cdn_url}")

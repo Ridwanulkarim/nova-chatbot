@@ -71,6 +71,28 @@ function renderInlineMath(text) {
   }
 }
 
+const handleDownloadImage = async (e, url, altText) => {
+  const fileName = `${(altText || 'pluto-generated-image').slice(0, 40).trim().replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`;
+  if (url.startsWith('data:')) {
+    return;
+  }
+  e.preventDefault();
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  } catch {
+    window.open(url, '_blank');
+  }
+};
+
 export function MarkdownContent({ content }) {
   if (!content) return null;
 
@@ -257,6 +279,8 @@ export function MarkdownContent({ content }) {
       const alt = m[1];
       const rawUrl = m[2];
       const fullUrl = rawUrl.startsWith('/') ? `${API_HOST}${rawUrl}` : rawUrl;
+      const isPollinationsFallback = fullUrl.includes('pollinations.ai');
+      const downloadFileName = `${(alt || 'pluto-generated-image').slice(0, 40).trim().replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`;
 
       elements.push(
         <div key={`img-${m.index}`} className="my-3 rounded-2xl overflow-hidden border border-slate-700/80 bg-slate-900 shadow-xl max-w-lg">
@@ -265,7 +289,9 @@ export function MarkdownContent({ content }) {
               src={fullUrl}
               alt={alt}
               loading="lazy"
-              className="w-full h-auto max-h-[420px] object-cover transition-transform duration-300 group-hover/img:scale-[1.01]"
+              className={`w-full h-auto max-h-[420px] object-cover transition-transform duration-300 group-hover/img:scale-[1.01] ${
+                isPollinationsFallback ? 'scale-[1.06] origin-top -translate-y-1' : ''
+              }`}
             />
           </div>
           <div className="p-3 bg-slate-850 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-300">
@@ -274,10 +300,11 @@ export function MarkdownContent({ content }) {
             </span>
             <a
               href={fullUrl}
-              download
+              download={downloadFileName}
+              onClick={(e) => handleDownloadImage(e, fullUrl, alt)}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-medium transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-medium transition-colors shadow-sm cursor-pointer"
             >
               <Download size={13} />
               <span>Download</span>

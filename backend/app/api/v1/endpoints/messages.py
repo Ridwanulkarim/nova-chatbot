@@ -232,7 +232,7 @@ async def stream_message(
                 init_msg = json.dumps({'token': '⚡ Generating high-speed image with Fast Turbo Mode...\n\n'})
                 yield f"data: {init_msg}\n\n"
                 img_result = await image_service.generate_image(prompt=img_prompt, model="turbo")
-                image_card = f"![{img_prompt}]({img_result['url']})\n\n**Prompt:** *{img_prompt}*\n\n⚡ *Generated in Fast Turbo Mode*\n\n[📥 Download Image]({img_result['url']})"
+                image_card = f"![{img_prompt}]({img_result['url']})\n\n**Prompt:** *{img_prompt}*\n\n⚡ *Generated in Fast Turbo Mode (Watermark-free)*"
                 card_msg = json.dumps({'token': image_card})
                 yield f"data: {card_msg}\n\n"
                 
