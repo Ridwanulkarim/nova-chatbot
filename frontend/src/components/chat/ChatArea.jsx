@@ -14,6 +14,7 @@ import {
   Sparkles,
   SquarePen,
   RotateCw,
+  ChevronDown,
 } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -149,7 +150,7 @@ export function ChatArea({
             : 'border-slate-800/80 bg-slate-950/80 text-slate-100'
         }`}
       >
-        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           <button
             onClick={onToggleSidebar}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex-shrink-0"
@@ -234,12 +235,12 @@ export function ChatArea({
               resets_in_hours: 24,
             };
             return (
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setShowQuotaTooltip((v) => !v)}
                   onMouseEnter={() => setShowQuotaTooltip(true)}
                   onMouseLeave={() => setShowQuotaTooltip(false)}
-                  className={`flex items-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium border transition-all ${
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium border transition-all flex-shrink-0 cursor-pointer ${
                     quota.remaining_messages <= 5 || quota.remaining_images <= 2
                       ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
                       : theme === 'lavender-glow'
@@ -331,21 +332,21 @@ export function ChatArea({
           })()}
 
           {/* Model Selector (Visible on Mobile, Tablet & Desktop) */}
-          <div className="flex items-center">
+          <div className="relative flex items-center flex-shrink-0">
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className={`text-[11px] sm:text-xs rounded-xl px-2 sm:px-2.5 py-1 sm:py-1.5 focus:outline-none cursor-pointer border font-medium transition-all max-w-[125px] xs:max-w-[155px] sm:max-w-none truncate ${
+              className={`appearance-none text-[11px] sm:text-xs rounded-full pl-2.5 pr-6 py-1 sm:py-1.5 focus:outline-none cursor-pointer border font-medium transition-all max-w-[100px] xs:max-w-[130px] sm:max-w-none truncate ${
                 theme === 'lavender-glow'
-                  ? 'bg-white border-purple-200 text-slate-800 hover:border-purple-300 focus:border-purple-500 shadow-xs'
-                  : 'bg-slate-900 border-slate-700 text-slate-200 hover:border-slate-600 focus:border-brand-500'
+                  ? 'bg-white border-purple-200 text-slate-800 hover:border-purple-300 focus:border-purple-400 shadow-xs'
+                  : 'bg-slate-900 border-slate-700 text-slate-200 hover:border-slate-600 focus:border-brand-500 shadow-xs'
               }`}
               title="Select AI Model"
             >
               {(availableModels && availableModels.length > 0 ? availableModels : [
-                { id: 'openai/gpt-oss-120b', name: 'GPT-OSS 120B (Groq)' },
-                { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B (Groq)' },
-                { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B (Groq)' },
+                { id: 'openai/gpt-oss-120b', name: 'GPT-OSS 120B' },
+                { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B' },
+                { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B' },
                 { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
                 { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
               ]).map((m) => (
@@ -354,6 +355,12 @@ export function ChatArea({
                 </option>
               ))}
             </select>
+            <ChevronDown
+              size={12}
+              className={`absolute right-2 pointer-events-none transition-colors ${
+                theme === 'lavender-glow' ? 'text-purple-600' : 'text-slate-400'
+              }`}
+            />
           </div>
 
           {/* Upgrade Button (Desktop & Tablet) */}
@@ -412,10 +419,10 @@ export function ChatArea({
             <Boxes size={16} />
           </button>
 
-          {/* Theme Palette Switcher */}
+          {/* Theme Palette Switcher (Desktop/Tablet) */}
           <button
             onClick={onToggleTheme}
-            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
+            className={`hidden sm:flex p-1.5 sm:p-2 rounded-lg transition-colors ${
               theme === 'lavender-glow'
                 ? 'text-slate-600 hover:text-slate-900 hover:bg-purple-100/70'
                 : 'text-slate-400 hover:text-white hover:bg-slate-850'
@@ -425,10 +432,10 @@ export function ChatArea({
             <Palette size={16} />
           </button>
 
-          {/* Settings Button */}
+          {/* Settings Button (Desktop/Tablet - on mobile tapping avatar opens Settings) */}
           <button
             onClick={onOpenSettings}
-            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
+            className={`hidden sm:flex p-1.5 sm:p-2 rounded-lg transition-colors ${
               theme === 'lavender-glow'
                 ? 'text-slate-600 hover:text-slate-900 hover:bg-purple-100/70'
                 : 'text-slate-400 hover:text-white hover:bg-slate-850'
