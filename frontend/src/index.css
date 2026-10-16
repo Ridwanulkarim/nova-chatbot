@@ -8,6 +8,11 @@
   * {
     border-color: rgba(147, 112, 219, 0.15);
   }
+
+  html {
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* 1. User's uploaded Ethereal Lavender Gradient Theme */

@@ -14,6 +14,7 @@ import {
   X,
   Check,
   Boxes,
+  RotateCw,
 } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -395,6 +396,20 @@ export function Sidebar({ isOpen, onClose, onOpenSettings, onOpenDocModal, onOpe
             }`}>
               Directory
             </span>
+          </button>
+          <button
+            onClick={() => {
+              window.location.reload();
+            }}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-colors ${
+              isLight
+                ? 'text-slate-700 hover:text-slate-950 hover:bg-purple-100/70'
+                : 'text-slate-300 hover:text-white hover:bg-slate-850'
+            }`}
+            title="Reload web application"
+          >
+            <RotateCw size={15} className="text-emerald-500" />
+            <span>Reload & Refresh App</span>
           </button>
         </div>
 

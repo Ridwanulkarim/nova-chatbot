@@ -13,6 +13,7 @@ import {
   Palette,
   Sparkles,
   SquarePen,
+  RotateCw,
 } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -73,6 +74,63 @@ export function ChatArea({
     sendMessage(newText);
   };
 
+  // Mobile Pull-to-Refresh & Quick Reload Logic
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isReloadingHeader, setIsReloadingHeader] = useState(false);
+  const touchStartY = useRef(0);
+  const isPullingRef = useRef(false);
+
+  const handleManualReload = () => {
+    setIsReloadingHeader(true);
+    setTimeout(() => {
+      window.location.reload();
+    }, 200);
+  };
+
+  const handleTouchStart = (e) => {
+    if (scrollContainerRef.current && scrollContainerRef.current.scrollTop <= 2) {
+      touchStartY.current = e.touches[0].clientY;
+      isPullingRef.current = true;
+    } else {
+      isPullingRef.current = false;
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isPullingRef.current || isRefreshing) return;
+    if (scrollContainerRef.current && scrollContainerRef.current.scrollTop > 2) {
+      isPullingRef.current = false;
+      setPullDistance(0);
+      return;
+    }
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY.current;
+    if (diff > 0) {
+      const pull = Math.min(Math.pow(diff, 0.82) * 1.5, 80);
+      setPullDistance(pull);
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isPullingRef.current || isRefreshing) {
+      isPullingRef.current = false;
+      return;
+    }
+    isPullingRef.current = false;
+    if (pullDistance >= 55) {
+      setIsRefreshing(true);
+      setPullDistance(48);
+      setTimeout(() => {
+        window.location.reload();
+      }, 400);
+    } else {
+      setPullDistance(0);
+    }
+  };
+
   return (
     <div
       className={`flex-1 flex flex-col h-full overflow-hidden relative ${
@@ -108,6 +166,19 @@ export function ChatArea({
           >
             <SquarePen size={14} />
             <span className="hidden sm:inline">New Chat</span>
+          </button>
+
+          {/* Quick Reload Button (Mobile & Desktop) */}
+          <button
+            onClick={handleManualReload}
+            className={`p-1.5 rounded-xl border transition-all flex-shrink-0 cursor-pointer flex items-center justify-center ${
+              theme === 'lavender-glow'
+                ? 'bg-white/80 hover:bg-white border-purple-200 text-slate-700 hover:text-slate-900 shadow-xs'
+                : 'bg-slate-900/80 hover:bg-slate-800 border-slate-700/80 text-slate-300 hover:text-white'
+            }`}
+            title="Reload Pluto AI"
+          >
+            <RotateCw size={14} className={`${isReloadingHeader ? 'animate-spin text-brand-500' : ''}`} />
           </button>
 
           {/* Conversation Title (if inside conversation with messages) */}
@@ -415,12 +486,51 @@ export function ChatArea({
         </div>
       )}
 
-      {/* Messages Scroll Area */}
+      {/* Messages Scroll Area with Touch Pull-to-Refresh */}
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col relative"
       >
+        {/* Animated Pull to Refresh Indicator */}
+        {(pullDistance > 0 || isRefreshing) && (
+          <div
+            style={{ height: `${pullDistance}px` }}
+            className="w-full flex items-center justify-center overflow-hidden transition-all duration-150 pointer-events-none z-20 flex-shrink-0"
+          >
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium shadow-md border ${
+                theme === 'lavender-glow'
+                  ? 'bg-white/95 border-purple-200 text-purple-950 shadow-purple-950/10'
+                  : 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-black/40'
+              }`}
+            >
+              <RotateCw
+                size={13}
+                className={`${
+                  isRefreshing
+                    ? 'animate-spin text-brand-500'
+                    : pullDistance >= 55
+                    ? 'text-brand-500 rotate-180 transition-transform'
+                    : 'text-slate-400'
+                }`}
+                style={{
+                  transform: !isRefreshing ? `rotate(${Math.min(pullDistance * 5, 360)}deg)` : undefined,
+                }}
+              />
+              <span className="text-[11px] font-medium">
+                {isRefreshing
+                  ? 'Reloading Pluto AI...'
+                  : pullDistance >= 55
+                  ? 'Release to reload'
+                  : 'Pull down to reload'}
+              </span>
+            </div>
+          </div>
+        )}
         {messages.length === 0 ? (
           <WelcomeScreen
             onOpenDocModal={onOpenDocModal}
