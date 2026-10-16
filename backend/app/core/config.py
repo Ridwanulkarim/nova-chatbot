@@ -50,6 +50,12 @@ def get_default_upload_dir() -> str:
 
 
 def get_default_database_url() -> str:
+    for var in ("DATABASE_URL", "POSTGRES_URL", "NEON_DATABASE_URL", "POSTGRES_URL_NON_POOLING", "POSTGRES_PRISMA_URL"):
+        val = os.environ.get(var)
+        if val:
+            clean = val.strip().strip("\"'")
+            if clean and not clean.startswith("your_") and "placeholder" not in clean.lower():
+                return clean
     if is_running_on_vercel():
         return "sqlite:////tmp/pluto_ai.db"
     try:
@@ -156,12 +162,25 @@ settings.GROQ_API_KEY = _clean_key(settings.GROQ_API_KEY) or _read_env_val("GROQ
 settings.GEMINI_API_KEY = _clean_key(settings.GEMINI_API_KEY) or _read_env_val("GEMINI_API_KEY")
 
 # Clean and normalize DATABASE_URL
+if settings.DATABASE_URL.startswith("sqlite"):
+    for var in ("DATABASE_URL", "POSTGRES_URL", "NEON_DATABASE_URL", "POSTGRES_URL_NON_POOLING", "POSTGRES_PRISMA_URL"):
+        val = os.environ.get(var)
+        if val:
+            cand = val.strip().strip("\"'")
+            if cand and not cand.startswith("sqlite") and not cand.startswith("your_") and "placeholder" not in cand.lower():
+                settings.DATABASE_URL = cand
+                break
+
 if settings.DATABASE_URL:
     clean_db = settings.DATABASE_URL.strip().strip("\"'")
     if clean_db.startswith("DATABASE_URL="):
         clean_db = clean_db.split("DATABASE_URL=", 1)[1].strip().strip("\"'")
     elif clean_db.startswith("database_url="):
         clean_db = clean_db.split("database_url=", 1)[1].strip().strip("\"'")
+    elif clean_db.startswith("POSTGRES_URL="):
+        clean_db = clean_db.split("POSTGRES_URL=", 1)[1].strip().strip("\"'")
+    elif clean_db.startswith("postgres_url="):
+        clean_db = clean_db.split("postgres_url=", 1)[1].strip().strip("\"'")
     if clean_db.startswith("postgres://"):
         clean_db = clean_db.replace("postgres://", "postgresql://", 1)
     settings.DATABASE_URL = clean_db

@@ -33,14 +33,27 @@ FallbackSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=fall
 
 _fallback_active = False
 _fallback_initialized = False
+_primary_initialized = False
 
 def is_fallback_active() -> bool:
     return _fallback_active
+
+def _init_primary_schema():
+    global _primary_initialized
+    if not _primary_initialized:
+        try:
+            import app.database.base  # Register all models with Base
+            Base.metadata.create_all(bind=engine)
+            _primary_initialized = True
+            logger.info("Successfully provisioned schema on primary database.")
+        except Exception as e:
+            logger.error(f"Error provisioning primary schema: {e}")
 
 def _init_fallback_schema():
     global _fallback_initialized
     if not _fallback_initialized:
         try:
+            import app.database.base  # Register all models with Base
             Base.metadata.create_all(bind=fallback_engine)
             _fallback_initialized = True
             logger.info("Successfully provisioned schema on fallback SQLite database.")
@@ -59,6 +72,7 @@ class _ResilientSessionMaker:
             _init_fallback_schema()
             return FallbackSessionLocal(*args, **kwargs)
         try:
+            _init_primary_schema()
             s = _PrimarySessionLocal(*args, **kwargs)
             s.execute(text("SELECT 1"))
             return s

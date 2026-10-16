@@ -30,6 +30,31 @@ app = FastAPI(
 def ping():
     return {"status": "ok", "message": "Pluto AI backend is running on Vercel"}
 
+@app.get("/api/db-status")
+@app.get("/api/v1/db-status")
+def db_status():
+    from app.database.session import get_db, is_fallback_active, normalized_url, redact_db_url
+    from sqlalchemy import inspect
+    try:
+        db_gen = get_db()
+        db_session = next(db_gen)
+        inspector = inspect(db_session.get_bind())
+        tables = inspector.get_table_names()
+        fallback = is_fallback_active()
+        return {
+            "status": "connected",
+            "is_fallback": fallback,
+            "database_type": "sqlite" if fallback or "sqlite" in normalized_url else "postgresql",
+            "configured_url": redact_db_url(normalized_url),
+            "tables": tables,
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "configured_url": redact_db_url(normalized_url),
+        }
+
 # CORS Middleware - Restrict strictly to configured CORS origins + dynamic Vercel deployments
 app.add_middleware(
     CORSMiddleware,
