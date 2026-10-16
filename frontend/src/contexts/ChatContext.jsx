@@ -374,6 +374,10 @@ export function ChatProvider({ children }) {
       } catch (e) {}
     }
 
+    if (!isAuthenticated) {
+      return localConv;
+    }
+
     try {
       const conv = await api.getConversation(conversationId);
       setActiveConversation(conv);

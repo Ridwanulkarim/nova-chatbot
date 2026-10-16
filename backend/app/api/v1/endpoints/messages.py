@@ -260,10 +260,10 @@ async def stream_message(
 
         async def sse_image_stream():
             try:
-                init_msg = json.dumps({'token': '🎨 Generating photorealistic image with AI...\n\n'})
+                init_msg = json.dumps({'token': '⚡ Generating high-speed image with Fast Turbo Mode...\n\n'})
                 yield f"data: {init_msg}\n\n"
-                img_result = await image_service.generate_image(prompt=img_prompt)
-                image_card = f"![{img_prompt}]({img_result['url']})\n\n**Prompt:** *{img_prompt}*\n\n[📥 Download Image]({img_result['url']})"
+                img_result = await image_service.generate_image(prompt=img_prompt, model="turbo")
+                image_card = f"![{img_prompt}]({img_result['url']})\n\n**Prompt:** *{img_prompt}*\n\n⚡ *Generated in Fast Turbo Mode*\n\n[📥 Download Image]({img_result['url']})"
                 card_msg = json.dumps({'token': image_card})
                 yield f"data: {card_msg}\n\n"
                 
@@ -274,7 +274,7 @@ async def stream_message(
                         conversation_id=conversation_id,
                         role="assistant",
                         content=image_card,
-                        model="flux-image-generator",
+                        model="fast-turbo-image-generator",
                         created_at=datetime.now(timezone.utc)
                     )
                     db_save.add(asst_msg)

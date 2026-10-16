@@ -324,7 +324,7 @@ export function ChatComposer({ onOpenDocModal, theme }) {
               <span className="hidden xs:inline">{uploadingFile ? 'Uploading...' : 'Attach'}</span>
             </button>
 
-            {/* AI Image Generator Toggle */}
+            {/* AI Image Generator Toggle - Fast Turbo Mode */}
             <button
               type="button"
               onClick={() => setImageMode((prev) => !prev)}
@@ -335,10 +335,10 @@ export function ChatComposer({ onOpenDocModal, theme }) {
                   ? 'text-slate-600 hover:text-slate-900 hover:bg-purple-100/70 border border-transparent'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-transparent'
               }`}
-              title="Generate AI images"
+              title="Fast Turbo AI Image Generator"
             >
               <Palette size={13} className={`${imageMode ? 'text-purple-600' : ''} flex-shrink-0`} />
-              <span className="hidden sm:inline">Generate Image</span>
+              <span className="hidden sm:inline">Turbo Image</span>
             </button>
 
             {/* Web Search Toggle */}

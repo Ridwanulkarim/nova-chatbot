@@ -17,6 +17,7 @@ class ImageGenerateRequest(BaseModel):
     conversation_id: Optional[str] = None
     width: Optional[int] = 1024
     height: Optional[int] = 1024
+    model: Optional[str] = "turbo"
 
 @router.post("/generate")
 async def generate_ai_image(
@@ -37,7 +38,8 @@ async def generate_ai_image(
         result = await image_service.generate_image(
             prompt=req.prompt,
             width=req.width or 1024,
-            height=req.height or 1024
+            height=req.height or 1024,
+            model=req.model or "turbo"
         )
     except Exception as e:
         raise HTTPException(
