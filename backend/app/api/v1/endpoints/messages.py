@@ -370,22 +370,90 @@ async def stream_message(
                     auxiliary_ocr_texts.append(f"--- Text recognized from {f_name} ---\n{ext_text}")
         return extracted
 
+    # Helper to extract document attachments directly from attachments (stateless & serverless resilient)
+    def _extract_document_contexts(att_list):
+        if isinstance(att_list, str):
+            try:
+                att_list = json.loads(att_list)
+            except Exception:
+                return []
+        doc_contexts = []
+        for a in (att_list or []):
+            if not isinstance(a, dict):
+                continue
+            f_name = a.get("filename") or a.get("name", "document")
+            m_type = (a.get("media_type") or a.get("type", "document")).lower()
+            ext = os.path.splitext(f_name)[1].lower()
+            is_image = m_type == "image" or any(
+                f_name.lower().endswith(e) for e in [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]
+            )
+            if is_image:
+                continue
+
+            # 1. Text already pre-extracted in attachment
+            text = (a.get("extracted_text") or "").strip()
+
+            # 2. Extract from data_url if base64 encoded document
+            if not text:
+                f_url = a.get("data_url") or a.get("url", "")
+                if isinstance(f_url, str) and f_url.startswith("data:"):
+                    try:
+                        _, b64_part = f_url.split(",", 1)
+                        raw_bytes = base64.b64decode(b64_part)
+                        text = rag_service.extract_text_from_bytes(raw_bytes, filename=f_name, mime_type=a.get("mime_type", ""))
+                    except Exception as b64_err:
+                        logger.warning(f"Error decoding document data_url for {f_name}: {b64_err}")
+                elif isinstance(f_url, str) and not f_url.startswith("http"):
+                    base = os.path.basename(f_url)
+                    for candidate in [
+                        os.path.join(settings.UPLOAD_DIR, base),
+                        os.path.join(tempfile.gettempdir(), base),
+                        os.path.join(settings.UPLOAD_DIR, f_name),
+                        os.path.join(tempfile.gettempdir(), f_name),
+                    ]:
+                        if os.path.exists(candidate) and os.path.getsize(candidate) > 0:
+                            text = rag_service.extract_text_from_file(candidate, a.get("mime_type", ""))
+                            if text:
+                                break
+
+            if text:
+                clean_snippet = text[:50000].strip()
+                doc_contexts.append({
+                    "filename": f_name,
+                    "content": clean_snippet,
+                    "char_count": len(clean_snippet)
+                })
+
+        return doc_contexts
+
     # Multimodal media attachments & Vision processing
     attached_images = []
+    attached_documents = []
     auxiliary_ocr_texts = []
     image_validation_errors = []
 
     if msg_in.attachments:
         attached_images = _extract_valid_images(msg_in.attachments, record_errors=True)
+        attached_documents = _extract_document_contexts(msg_in.attachments)
 
     # Multi-turn Vision Continuity: If the user didn't attach a new image on this turn,
-    # check if a recent user message in this conversation had an uploaded image (e.g. Turn 1: uploads image, Turn 2: "solve this")
+    # check if a recent user message in this conversation had an uploaded image
     if not attached_images and not image_validation_errors and history:
         for past_msg in reversed(history[:-1][-6:]):
             if past_msg.role == "user" and getattr(past_msg, "attachments", None):
                 carried = _extract_valid_images(past_msg.attachments, record_errors=False)
                 if carried:
                     attached_images = carried
+                    break
+
+    # Multi-turn Document Continuity: If the user didn't attach a document on this turn,
+    # carry forward document context from a recent user turn (e.g. Turn 1: uploads PDF, Turn 2: "pdf ta bujhai dao")
+    if not attached_documents and history:
+        for past_msg in reversed(history[:-1][-6:]):
+            if past_msg.role == "user" and getattr(past_msg, "attachments", None):
+                carried_docs = _extract_document_contexts(past_msg.attachments)
+                if carried_docs:
+                    attached_documents = carried_docs
                     break
 
     # If all uploaded images on the current turn failed validation, return immediate descriptive error
@@ -423,9 +491,27 @@ async def stream_message(
         if sol.get("success"):
             math_context = math_service.format_math_context(msg_in.content, sol)
 
+    # Document Comprehension Context (stateless & RAG fallback)
+    document_context = ""
+    if attached_documents:
+        doc_lines = [
+            "--- BEGIN ATTACHED USER DOCUMENTS ---",
+            "CRITICAL DIRECTIVE: The user has uploaded the following document(s). You have direct, complete access to their text contents below.",
+            "Carefully analyze, explain, summarize, or answer questions strictly using the actual information and facts provided in these documents.",
+            "NEVER claim that you cannot open, access, or read the document.",
+            "NEVER produce generic boilerplate templates with placeholder brackets (such as *[PDF-এর শিরোনাম এখানে]* or *[লেখক বা সংস্থা]*).",
+            "When the user asks in Bengali (e.g. 'pdf ta bujhai dao' or 'explain this pdf'), explain and summarize the actual content, key sections, and findings in fluent, authentic Bengali.\n"
+        ]
+        for d in attached_documents:
+            doc_lines.append(f"### Document: {d['filename']} ###\n{d['content']}\n")
+        doc_lines.append("--- END ATTACHED USER DOCUMENTS ---")
+        document_context = "\n".join(doc_lines)
+
     if math_context:
         base_system += f"\n\n{math_context}"
-    if rag_context and not attached_images:
+    if document_context:
+        base_system += f"\n\n{document_context}"
+    elif rag_context and not attached_images:
         base_system += f"\n\n{rag_context}"
     if search_context:
         base_system += f"\n\n{search_context}"

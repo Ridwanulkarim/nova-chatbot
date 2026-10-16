@@ -292,6 +292,16 @@ export const api = {
     const isAud = file.type.startsWith('audio/') || ['mp3', 'wav', 'ogg'].includes(ext);
     const mediaType = isImg ? 'image' : isVid ? 'video' : isAud ? 'audio' : 'document';
 
+    let extractedText = backendData?.extracted_text || null;
+
+    // For text-based formats, read client-side if backend didn't provide extracted text
+    if (!extractedText && ['txt', 'md', 'csv', 'json', 'py', 'js', 'html', 'css', 'yaml', 'yml', 'sql', 'xml'].includes(ext)) {
+      try {
+        const text = await file.text();
+        extractedText = text ? text.slice(0, 100000) : null;
+      } catch (e) {}
+    }
+
     return {
       id: backendData?.id || `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       filename: file.name,
@@ -301,7 +311,7 @@ export const api = {
       url: localDataUrl || backendData?.data_url || backendData?.url,
       data_url: localDataUrl || backendData?.data_url,
       media_type: mediaType,
-      extracted_text: backendData?.extracted_text || null,
+      extracted_text: extractedText,
       created_at: backendData?.created_at || new Date().toISOString(),
     };
   },

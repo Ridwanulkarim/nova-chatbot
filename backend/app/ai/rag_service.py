@@ -78,7 +78,7 @@ class RAGService:
 
     def _extract_from_pdf(self, file_path: str) -> str:
         """Extracts text from PDF using pypdf if available, or native zlib PDF stream reader."""
-        # 1. Try pypdf
+        # 1. Try pypdf directly
         try:
             import pypdf
             reader = pypdf.PdfReader(file_path)
@@ -89,47 +89,63 @@ class RAGService:
                     pages_text.append(t.strip())
             if pages_text:
                 return "\n\n".join(pages_text)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"pypdf extraction failed for {file_path}: {e}")
 
-        # 2. Native PDF stream extractor using zlib
+        # 2. Try reading file bytes and extracting
         try:
-            import zlib
-            extracted_text = []
             with open(file_path, "rb") as f:
-                pdf_bytes = f.read()
+                b = f.read()
+            return self.extract_text_from_bytes(b, filename=file_path, mime_type="application/pdf")
+        except Exception:
+            return ""
 
-            stream_matches = re.findall(b"stream[\r\n]+(.*?)[\r\n]+endstream", pdf_bytes, re.DOTALL)
-            for s in stream_matches:
-                data = s
-                try:
-                    data = zlib.decompress(s)
-                except Exception:
-                    pass
+    def extract_text_from_bytes(self, content_bytes: bytes, filename: str = "", mime_type: str = "") -> str:
+        """Extracts text content directly from in-memory byte buffers."""
+        if not content_bytes:
+            return ""
 
-                # Extract (text) Tj
-                tj_matches = re.findall(rb"\((.*?)\)\s*Tj", data)
-                for m in tj_matches:
-                    try:
-                        decoded = m.decode("latin1", errors="ignore")
-                        if decoded.strip():
-                            extracted_text.append(decoded)
-                    except Exception:
-                        pass
+        ext = os.path.splitext(filename)[1].lower() if filename else ""
 
-                # Extract [(text)] TJ
-                array_matches = re.findall(rb"\[(.*?)\]\s*TJ", data)
-                for arr in array_matches:
-                    parts = re.findall(rb"\((.*?)\)", arr)
-                    for part in parts:
-                        try:
-                            decoded = part.decode("latin1", errors="ignore")
-                            if decoded.strip():
-                                extracted_text.append(decoded)
-                        except Exception:
-                            pass
+        # 1. PDF from bytes
+        if ext == ".pdf" or "pdf" in (mime_type or "").lower() or content_bytes.startswith(b"%PDF"):
+            try:
+                import io, pypdf
+                reader = pypdf.PdfReader(io.BytesIO(content_bytes))
+                pages = []
+                for p in reader.pages:
+                    t = p.extract_text()
+                    if t and t.strip():
+                        pages.append(t.strip())
+                if pages:
+                    return "\n\n".join(pages)
+            except Exception as e:
+                logger.warning(f"pypdf extraction from bytes failed: {e}")
 
-            return " ".join(extracted_text).strip()
+        # 2. DOCX from bytes
+        if ext == ".docx" or "word" in (mime_type or "").lower() or "officedocument" in (mime_type or "").lower():
+            try:
+                import io, zipfile
+                import xml.etree.ElementTree as ET
+                with zipfile.ZipFile(io.BytesIO(content_bytes), "r") as zf:
+                    if "word/document.xml" in zf.namelist():
+                        xml_data = zf.read("word/document.xml")
+                        tree = ET.fromstring(xml_data)
+                        texts = []
+                        for elem in tree.iter():
+                            if elem.tag.endswith("}t") and elem.text:
+                                texts.append(elem.text)
+                            elif elem.tag.endswith("}p"):
+                                texts.append("\n")
+                        docx_text = "".join(texts).strip()
+                        if docx_text:
+                            return docx_text
+            except Exception as e:
+                logger.warning(f"DOCX extraction from bytes failed: {e}")
+
+        # 3. Plain text / Markdown / CSV / JSON / Code
+        try:
+            return content_bytes.decode("utf-8", errors="ignore").strip()
         except Exception:
             return ""
 
@@ -200,6 +216,20 @@ class RAGService:
 
         scored_chunks.sort(key=lambda x: x[0], reverse=True)
         top_results = scored_chunks[:top_k]
+
+        # If user explicitly attached files and keyword scoring had 0 hits
+        # (e.g. general queries like "pdf ta bujhai dao", "explain this", "summarize"),
+        # do not return empty! Ground response on the initial sections of the attached document.
+        if not top_results and all_chunks:
+            return [
+                {
+                    "filename": filename,
+                    "chunk_index": chunk.chunk_index,
+                    "content": chunk.content,
+                    "page_number": chunk.page_number
+                }
+                for chunk, filename in all_chunks[:top_k]
+            ]
 
         return [
             {

@@ -131,13 +131,16 @@ async def upload_document(
             pass
 
     text_chunks = []
+    extracted_text = ""
     
     # Only index text documents (PDF, TXT, DOCX, etc.) into RAG chunks — images use direct multimodal vision
     if media_type == "document":
         try:
             extracted_text = rag_service.extract_text_from_file(file_path, file.content_type or "")
+            if not extracted_text and content_bytes:
+                extracted_text = rag_service.extract_text_from_bytes(content_bytes, clean_filename, file.content_type or "")
             text_chunks = rag_service.chunk_text(extracted_text) if extracted_text else []
-        except Exception:
+        except Exception as e:
             text_chunks = []
 
     doc_id = str(uuid.uuid4())
@@ -184,7 +187,7 @@ async def upload_document(
         "url": saved_url,
         "data_url": image_url if image_url.startswith("data:") else None,
         "media_type": media_type,
-        "extracted_text": None,
+        "extracted_text": (extracted_text[:120000] if extracted_text else None),
         "created_at": created_at
     }
 
