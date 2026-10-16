@@ -34,9 +34,13 @@ FallbackSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=fall
 _fallback_active = False
 _fallback_initialized = False
 _primary_initialized = False
+_fallback_reason = None
 
 def is_fallback_active() -> bool:
     return _fallback_active
+
+def get_fallback_reason() -> Optional[str]:
+    return _fallback_reason
 
 def _init_primary_schema():
     global _primary_initialized
@@ -76,7 +80,9 @@ class _ResilientSessionMaker:
             s = _PrimarySessionLocal(*args, **kwargs)
             s.execute(text("SELECT 1"))
             return s
-        except (OperationalError, ProgrammingError, DBAPIError) as exc:
+        except (OperationalError, ProgrammingError, DBAPIError, Exception) as exc:
+            global _fallback_reason
+            _fallback_reason = f"{type(exc).__name__}: {str(exc)}"
             logger.warning(
                 f"Primary database connection failure ({redact_db_url(normalized_url)}: {exc}). "
                 f"Activating high-availability local SQLite fallback so chat sessions remain uninterrupted."

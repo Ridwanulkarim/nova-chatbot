@@ -33,7 +33,7 @@ def ping():
 @app.get("/api/db-status")
 @app.get("/api/v1/db-status")
 def db_status():
-    from app.database.session import get_db, is_fallback_active, normalized_url, redact_db_url
+    from app.database.session import get_db, is_fallback_active, get_fallback_reason, normalized_url, redact_db_url
     from sqlalchemy import inspect
     try:
         db_gen = get_db()
@@ -44,6 +44,7 @@ def db_status():
         return {
             "status": "connected",
             "is_fallback": fallback,
+            "fallback_reason": get_fallback_reason(),
             "database_type": "sqlite" if fallback or "sqlite" in normalized_url else "postgresql",
             "configured_url": redact_db_url(normalized_url),
             "tables": tables,
