@@ -50,7 +50,18 @@ export function generateSmartTitle(content) {
     }
   }
 
-  const imagePrefixes = ['generate an image of', 'generate a picture of', 'create an image of', 'draw an image of', '/image'];
+  const imagePrefixes = [
+    'generate an image of', 'generate a image of', 'generate image of', 'generate an image', 'generate a image', 'generate image',
+    'generate a picture of', 'generate picture of', 'generate a photo of', 'generate photo of',
+    'create an image of', 'create a image of', 'create image of', 'create an image', 'create a image', 'create image',
+    'create a picture of', 'create picture of', 'create a photo of', 'create photo of',
+    'draw an image of', 'draw a image of', 'draw image of', 'draw a picture of', 'draw picture of', 'draw a ', 'draw an ',
+    'make an image of', 'make a image of', 'make image of', 'make a picture of', 'make a photo of',
+    'image of a ', 'image of an ', 'image of ',
+    'picture of a ', 'picture of an ', 'picture of ',
+    'photo of a ', 'photo of an ', 'photo of ',
+    '/image'
+  ];
   for (const prefix of imagePrefixes) {
     if (cleanLow.startsWith(prefix)) {
       const subj = raw.slice(prefix.length).replace(/^[:\s,-]+/, '');

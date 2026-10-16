@@ -4,7 +4,7 @@ from app.ai.math_service import math_service
 from app.ai.search_service import search_service
 from app.ai.rag_service import rag_service
 from app.ai.vision_service import vision_service
-from app.ai.image_service import image_service
+from app.ai.image_service import image_service, detect_image_request
 
 class ToolOrchestrator:
     """
@@ -26,39 +26,11 @@ class ToolOrchestrator:
         clean = query.strip().lower()
 
         # 1. Image Generation Intent
-        image_prefixes = [
-            "/image",
-            "generate an image of",
-            "generate a picture of",
-            "generate an image",
-            "generate a picture",
-            "create an image of",
-            "create a picture of",
-            "create an image",
-            "create a picture",
-            "draw a picture of",
-            "draw an image of",
-            "draw a picture",
-            "draw an image",
-            "make an image of",
-            "make a picture of",
-            "make an image",
-            "make a picture"
-        ]
-        is_image_gen = (
-            any(clean.startswith(pfx) for pfx in image_prefixes)
-            or any(kw in clean for kw in ["generate an image of", "generate a picture of", "create an image of", "create a picture of"])
-        )
+        is_image_gen, img_prompt = detect_image_request(query)
         if is_image_gen:
-            prompt = query
-            # Sort prefixes by length descending to match longest first
-            for pfx in sorted(image_prefixes, key=len, reverse=True):
-                if clean.startswith(pfx):
-                    prompt = query[len(pfx):].strip(" :,-")
-                    break
             return {
                 "route": "IMAGE_GENERATION",
-                "image_prompt": prompt or query
+                "image_prompt": img_prompt or query
             }
 
         # 2. Mathematical Intent

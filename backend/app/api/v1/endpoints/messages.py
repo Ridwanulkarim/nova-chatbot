@@ -36,7 +36,7 @@ from app.core.quota import (
     refund_image_quota
 )
 from app.ai.orchestrator import tool_orchestrator
-from app.ai.image_service import image_service
+from app.ai.image_service import image_service, detect_image_request
 from app.ai.vision_service import vision_service
 from app.ai.math_service import math_service
 
@@ -88,12 +88,10 @@ def generate_smart_title(content: str) -> str:
             return greet_title
 
     # Image generation intent titles
-    for prefix in ["generate an image of", "generate a picture of", "create an image of", "draw an image of", "/image"]:
-        if clean_low.startswith(prefix):
-            img_subj = raw[len(prefix):].strip(" :,-")
-            if img_subj:
-                words = [w.capitalize() for w in img_subj.split()[:5]]
-                return f"Image: {' '.join(words)}"[:38]
+    is_img, img_subj = detect_image_request(raw)
+    if is_img and img_subj:
+        words = [w.capitalize() for w in img_subj.split()[:5]]
+        return f"Image: {' '.join(words)}"[:38]
 
     # Strip conversational question fillers
     fillers = [
@@ -137,30 +135,7 @@ async def stream_message(
     current_user: User = Depends(get_current_user)
 ):
     # Detect natural language image generation intent first to avoid double quota deduction
-    clean_low = msg_in.content.strip().lower()
-    image_prefixes = [
-        "/image",
-        "generate an image of",
-        "generate a picture of",
-        "generate an image",
-        "generate a picture",
-        "create an image of",
-        "create a picture of",
-        "create an image",
-        "create a picture",
-        "draw a picture of",
-        "draw an image of",
-        "draw a picture",
-        "draw an image",
-        "make an image of",
-        "make a picture of",
-        "make an image",
-        "make a picture"
-    ]
-    is_img_prompt = (
-        any(clean_low.startswith(pfx) for pfx in image_prefixes)
-        or any(kw in clean_low for kw in ["generate an image of", "generate a picture of", "create an image of", "create a picture of"])
-    )
+    is_img_prompt, img_prompt = detect_image_request(msg_in.content)
 
     db = SessionLocal()
     try:
@@ -249,12 +224,6 @@ async def stream_message(
         db.close()
 
     if is_img_prompt:
-        # Extract prompt
-        img_prompt = msg_in.content
-        for prefix in sorted(image_prefixes, key=len, reverse=True):
-            if clean_low.startswith(prefix):
-                img_prompt = msg_in.content[len(prefix):].strip(" :,-")
-                break
         if not img_prompt:
             img_prompt = msg_in.content
 
