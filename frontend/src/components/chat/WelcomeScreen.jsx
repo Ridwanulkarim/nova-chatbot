@@ -35,6 +35,9 @@ export function WelcomeScreen({
     setAttachedFiles,
     isStreaming,
     setErrorMessage,
+    selectedModel,
+    setSelectedModel,
+    availableModels,
   } = useChat();
 
   const { user } = useAuth();
@@ -183,12 +186,37 @@ export function WelcomeScreen({
 
       {/* 1. Personalized Greeting (matching screenshot style) */}
       <h1
-        className={`text-xl sm:text-3xl font-medium tracking-tight mb-4 sm:mb-7 text-center transition-colors ${
+        className={`text-xl sm:text-3xl font-medium tracking-tight mb-3 sm:mb-5 text-center transition-colors ${
           isLight ? 'text-slate-900' : 'text-slate-100'
         }`}
       >
         Hey, {firstName}. Ready to dive in?
       </h1>
+
+      {/* Model Selection Pill */}
+      {availableModels && availableModels.length > 1 && (
+        <div className="flex items-center justify-center gap-1.5 mb-3 sm:mb-5">
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border shadow-xs ${
+            isLight
+              ? 'bg-white/80 border-purple-200 text-slate-700'
+              : 'bg-slate-900/80 border-slate-700 text-slate-300'
+          }`}>
+            <span className="text-[11px] text-slate-400 font-medium">Model:</span>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="bg-transparent font-semibold cursor-pointer focus:outline-none text-brand-400 hover:text-brand-300 transition-colors"
+              title="Select Active AI Model"
+            >
+              {availableModels.map((m) => (
+                <option key={m.id} value={m.id} className="text-slate-900 bg-white">
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* 2. Main Search/Chat Input Capsule */}
       <div className="w-full max-w-2xl relative">

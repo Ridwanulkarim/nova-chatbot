@@ -259,21 +259,24 @@ export function ChatArea({
             );
           })()}
 
-          {/* Model Selector (Desktop) */}
-          <div className="hidden lg:block">
+          {/* Model Selector (Visible on Mobile, Tablet & Desktop) */}
+          <div className="flex items-center">
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className={`text-xs rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer border font-medium transition-all ${
+              className={`text-[11px] sm:text-xs rounded-xl px-2 sm:px-2.5 py-1 sm:py-1.5 focus:outline-none cursor-pointer border font-medium transition-all max-w-[125px] xs:max-w-[155px] sm:max-w-none truncate ${
                 theme === 'lavender-glow'
                   ? 'bg-white border-purple-200 text-slate-800 hover:border-purple-300 focus:border-purple-500 shadow-xs'
                   : 'bg-slate-900 border-slate-700 text-slate-200 hover:border-slate-600 focus:border-brand-500'
               }`}
+              title="Select AI Model"
             >
               {(availableModels && availableModels.length > 0 ? availableModels : [
                 { id: 'openai/gpt-oss-120b', name: 'GPT-OSS 120B (Groq)' },
                 { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B (Groq)' },
                 { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B (Groq)' },
+                { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
+                { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
               ]).map((m) => (
                 <option key={m.id} value={m.id} className="text-slate-900 bg-white">
                   {m.name}

@@ -360,16 +360,17 @@ export function ChatComposer({ onOpenDocModal, theme }) {
               <span className="hidden md:inline">Web Search</span>
             </button>
 
-            {/* Quick Model Selector */}
+            {/* Quick Model Selector (Visible on Mobile, Tablet & Desktop) */}
             {availableModels.length > 1 && (
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className={`border rounded-md text-[11px] px-1.5 sm:px-2 py-0.5 focus:outline-none cursor-pointer hidden lg:block ${
+                className={`border rounded-lg text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 focus:outline-none cursor-pointer max-w-[110px] sm:max-w-[170px] truncate ${
                   isLight
                     ? 'bg-purple-50 text-slate-800 border-purple-200 focus:border-purple-400'
                     : 'bg-slate-850 text-slate-300 border-slate-700/60 focus:border-brand-500'
                 }`}
+                title="Select Active Model"
               >
                 {availableModels.map((m) => (
                   <option key={m.id} value={m.id}>
