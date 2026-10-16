@@ -341,7 +341,7 @@ export function ChatProvider({ children }) {
                 setMessages(conv.messages);
                 safeSaveMessages(conv.messages, conv.id);
               }
-              if (conv.model) {
+              if (conv.model && !localStorage.getItem('pluto_selected_model')) {
                 setSelectedModel(conv.model);
               }
             } catch (e) {
@@ -401,7 +401,7 @@ export function ChatProvider({ children }) {
         localStorage.setItem('pluto_active_conversation', JSON.stringify(conv));
         localStorage.setItem('pluto_active_conv_id', String(conv.id));
       } catch (e) {}
-      if (conv.model) {
+      if (conv.model && !localStorage.getItem('pluto_selected_model')) {
         setSelectedModel(conv.model);
       }
       return conv;
@@ -500,6 +500,18 @@ export function ChatProvider({ children }) {
     }
   };
 
+  // Synchronously update selected model and persist to active conversation
+  const setSelectedModelAndSync = useCallback((newModel) => {
+    if (!newModel) return;
+    setSelectedModel(newModel);
+    try {
+      localStorage.setItem('pluto_selected_model', newModel);
+    } catch (e) {}
+    if (activeConversation?.id) {
+      updateConversationMeta(activeConversation.id, { model: newModel });
+    }
+  }, [activeConversation?.id]);
+
   // Delete conversation
   const deleteConversation = async (id) => {
     try {
@@ -592,17 +604,21 @@ export function ChatProvider({ children }) {
 
     const effectiveAttachments = finalAttachments || carriedAttachments;
 
-    const hasImages = (effectiveAttachments || []).some(
+    const hasCurrentTurnImage = (finalAttachments || []).some(
       (f) => f.media_type === 'image' || f.data_url?.startsWith('data:image') || (f.filename && f.filename.match(/\.(png|jpg|jpeg|webp|gif|bmp)$/i))
     );
     let modelToUse = selectedModel;
-    if (hasImages && (!modelToUse || modelToUse.includes('oss') || modelToUse.includes('qwen') || modelToUse.includes('llama') || modelToUse.includes('groq'))) {
+    if (hasCurrentTurnImage && (!modelToUse || modelToUse.includes('oss') || modelToUse.includes('qwen') || modelToUse.includes('llama') || modelToUse.includes('groq'))) {
       modelToUse = 'gemini-3.5-flash';
     }
 
+    const hasAnyImages = (effectiveAttachments || []).some(
+      (f) => f.media_type === 'image' || f.data_url?.startsWith('data:image') || (f.filename && f.filename.match(/\.(png|jpg|jpeg|webp|gif|bmp)$/i))
+    );
+
     const trimmedContent = (content || '').trim();
     const effectiveContent = trimmedContent || (
-      hasImages
+      hasAnyImages
         ? 'Please analyze this attached image thoroughly and solve any questions or explain all visible details.'
         : 'Please review and summarize the attached document.'
     );
@@ -933,7 +949,7 @@ export function ChatProvider({ children }) {
         isStreaming,
         availableModels,
         selectedModel,
-        setSelectedModel,
+        setSelectedModel: setSelectedModelAndSync,
         webSearchEnabled,
         setWebSearchEnabled,
         attachedFiles,

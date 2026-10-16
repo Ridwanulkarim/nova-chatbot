@@ -179,6 +179,8 @@ async def stream_message(
         )
         db.add(user_message)
         conv.updated_at = datetime.now(timezone.utc)
+        if msg_in.model:
+            conv.model = msg_in.model
         
         # Auto-update title if it's the first message or default title
         updated_title = None
@@ -579,8 +581,17 @@ async def stream_message(
         else:
             llm_messages.append({"role": "user", "content": user_parts})
 
-    # Resolve AI provider: Auto-route to a genuine vision-capable provider if images are present
-    if attached_images:
+    # Determine if user is uploading a new image on the CURRENT turn
+    turn_has_new_image = bool(
+        msg_in.attachments and any(
+            (a.get("media_type") == "image" or str(a.get("data_url", "")).startswith("data:image"))
+            for a in (json.loads(msg_in.attachments) if isinstance(msg_in.attachments, str) else msg_in.attachments or [])
+            if isinstance(a, dict)
+        )
+    )
+
+    # Resolve AI provider: strictly respect user's selected model unless new image requires vision
+    if turn_has_new_image:
         provider, resolved_model = ai_factory.get_vision_capable_provider(model_name)
         has_vision = False
         if provider and hasattr(provider, "list_supported_models"):
