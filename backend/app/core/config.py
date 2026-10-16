@@ -49,6 +49,9 @@ def get_default_upload_dir() -> str:
         return "/tmp/uploads"
 
 
+VERIFIED_NEON_URL = "postgresql://neondb_owner:npg_3WNU1STGomVB@ep-rough-field-b45hamxf-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require"
+
+
 def get_default_database_url() -> str:
     for var in ("DATABASE_URL", "POSTGRES_URL", "NEON_DATABASE_URL", "POSTGRES_URL_NON_POOLING", "POSTGRES_PRISMA_URL"):
         val = os.environ.get(var)
@@ -56,16 +59,7 @@ def get_default_database_url() -> str:
             clean = val.strip().strip("\"'")
             if clean and not clean.startswith("your_") and "placeholder" not in clean.lower():
                 return clean
-    if is_running_on_vercel():
-        return "sqlite:////tmp/pluto_ai.db"
-    try:
-        test_file = "./.write_test_db"
-        with open(test_file, "w") as f:
-            f.write("1")
-        os.remove(test_file)
-        return "sqlite:///./pluto_ai.db"
-    except Exception:
-        return "sqlite:////tmp/pluto_ai.db"
+    return VERIFIED_NEON_URL
 
 
 def _clean_key(val: Optional[str]) -> Optional[str]:
