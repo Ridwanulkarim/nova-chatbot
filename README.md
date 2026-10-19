@@ -319,20 +319,20 @@ classDiagram
 
 ### Core Endpoints
 
-| Method | Endpoint | Description | Auth Required |
+| Method | Endpoint | Description | Access Level |
 |---|---|---|:---:|
-| `POST` | `/api/v1/auth/register` | Register a new user account | ❌ |
-| `POST` | `/api/v1/auth/login` | Authenticate and obtain JWT bearer token | ❌ |
-| `GET` | `/api/v1/auth/me` | Fetch authenticated user profile & quota | ✅ |
-| `GET` | `/api/v1/conversations` | List user's conversations (supports search & pin) | ✅ |
-| `POST` | `/api/v1/conversations` | Create a new conversation | ✅ |
-| `DELETE` | `/api/v1/conversations/{id}` | Delete conversation and associated messages | ✅ |
-| `GET` | `/api/v1/conversations/{id}/messages` | Retrieve conversation message history | ✅ |
-| `POST` | `/api/v1/conversations/{id}/messages` | Send message and receive **Server-Sent Events (SSE)** stream | ✅ |
-| `POST` | `/api/v1/files/upload` | Upload document or image attachment | ✅ |
-| `POST` | `/api/v1/image/generate` | Generate AI image from prompt | ✅ |
-| `GET` | `/api/db-status` | Database connection telemetry & active tables | ❌ |
-| `GET` | `/api/v1/health` | Service health status | ❌ |
+| `POST` | `/api/v1/auth/register` | Register a new user account | 🔓 Public (No Token) |
+| `POST` | `/api/v1/auth/login` | Authenticate and obtain JWT bearer token | 🔓 Public (No Token) |
+| `GET` | `/api/v1/auth/me` | Fetch authenticated user profile & quota | 🔒 Protected (JWT Bearer) |
+| `GET` | `/api/v1/conversations` | List user's conversations (supports search & pin) | 🔒 Protected (JWT Bearer) |
+| `POST` | `/api/v1/conversations` | Create a new conversation | 🔒 Protected (JWT Bearer) |
+| `DELETE` | `/api/v1/conversations/{id}` | Delete conversation and associated messages | 🔒 Protected (JWT Bearer) |
+| `GET` | `/api/v1/conversations/{id}/messages` | Retrieve conversation message history | 🔒 Protected (JWT Bearer) |
+| `POST` | `/api/v1/conversations/{id}/messages` | Send message and receive **Server-Sent Events (SSE)** stream | 🔒 Protected (JWT Bearer) |
+| `POST` | `/api/v1/files/upload` | Upload document or image attachment | 🔒 Protected (JWT Bearer) |
+| `POST` | `/api/v1/image/generate` | Generate AI image from prompt | 🔒 Protected (JWT Bearer) |
+| `GET` | `/api/db-status` | Database connection telemetry & active tables | 🔓 Public (Monitoring) |
+| `GET` | `/api/v1/health` | Service health check status | 🔓 Public (Health Check) |
 
 ---
 
